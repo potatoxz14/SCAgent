@@ -98,21 +98,21 @@ Bash
 python main_diff_gaussian_noise.py
 ```
 
-### D. Device Transferability
+### D. Cross-Device Transfer
 
-**File:** `main_transfability.py`
+**File:** `main_cross_device.py`
 
-Tests the model's ability to generalize across different hardware devices (e.g., training on iPhone 13, testing on iPhone 14).
+Tests whether a model trained on one set of devices generalizes to **unseen** devices, purely inductively (no target-device data is used for training or model selection). The model is trained on **iPhone 13 + iPhone 16 Pro**, validated on **iPhone 14**, and tested on **iPhone 14 Pro**. Both the web and app-launch tasks are run with their SCAgent_all channel sets. Pipeline: MiniRocket (10k) -> PCA (250) -> One-vs-Rest TabPFN.
 
-- **Configuration:** Update `FOLDER_IPHONE_13` and `FOLDER_IPHONE_14` paths before running.
-- **Output:** Accuracy scores for both the source and target devices.
+- **Configuration:** `TRAIN_DEVICES`, `EVAL_DEVICE`, `TEST_DEVICE`, and the per-task device folders / channels are set at the top of the file.
+- **Output:** Evaluation accuracy on iPhone 14 and test accuracy on iPhone 14 Pro, for each task.
 
 **Usage:**
 
 Bash
 
 ```
-python main_transfability.py
+python main_cross_device.py
 ```
 
 ------
