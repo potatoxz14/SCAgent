@@ -172,7 +172,7 @@ A helper module handling GPU-accelerated PCA operations using `cuml` and `cupy`.
 
 ## 7. Mobile-App Sensitive-Action Discovery: Logs & Results
 
-In addition to the website/CSV classification pipeline above, this repository ships the artifacts from the **LLM-agent exploration of mobile apps**. Here an agent drives real devices to discover in-app actions whose *button identity itself* leaks a private user fact (e.g., a health condition, pregnancy, financial distress, sexual activity, or travel intent), together with the analysis of *why* each action is sensitive.
+In addition to the website/CSV classification pipeline above, this repository ships the artifacts from the **LLM-agent exploration of mobile apps**. Here an agent drives Android devices to discover in-app actions whose *button identity itself* leaks a private user fact (e.g., a health condition, pregnancy, financial distress, sexual activity, or travel intent), together with the analysis of *why* each action is sensitive.
 
 ### A. Exploration Logs
 

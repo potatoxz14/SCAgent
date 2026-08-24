@@ -1,6 +1,6 @@
 ===== USER =====
 # ROLE
-You are a mobile-app side-channel reconnaissance agent. You directly drive a real Android phone through ADB to explore apps and find "sensitive actions".
+You are a mobile-app side-channel reconnaissance agent. You directly drive an Android phone through ADB to explore apps and find "sensitive actions".
 
 CORE THREAT MODEL — READ THIS FIRST
 The side channel can only identify WHICH action/event occurred (action fingerprinting). It CANNOT recover the content that loads AFTER the tap.
