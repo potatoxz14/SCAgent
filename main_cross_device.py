@@ -38,7 +38,7 @@ TASKS = {
         'truncate': 'head',              # keep the first L samples
         'devices': {
             '13':    'iphone_13_web_with_diff',
-            '14':    'iphone_14_web',
+            '14':    'iphone_14_web_with_diff',
             '14pro': 'iphone_14pro_web_with_diff',
             '16pro': 'iphone_16pro_web_with_diff',
         },
