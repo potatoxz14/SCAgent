@@ -125,16 +125,14 @@ def generate_local(tokenizer, model, image_file, query):
 
 
 def process_image(image, query, caption_model=CAPTION_MODEL):
-    # Gemini：复用 inference_chat，走 OpenAI 兼容接口
     if "gemini" in caption_model.lower():
         chat = []
-        # add_response 内部用 encode_image 把本地图片转 base64，不要加 file:// 前缀
         chat = add_response("user", query, chat, image=image)
         try:
             response = inference_chat(
                 chat=chat,
                 model=caption_model,
-                url=GEMINI_API_URL,      # ← 注意你本机 inference_chat 的形参名
+                url=GEMINI_API_URL,   
                 token=GEMINI_API_KEY,
                 temperature=0.0,
             )
@@ -143,7 +141,6 @@ def process_image(image, query, caption_model=CAPTION_MODEL):
             print(f"Gemini Caption Error: {e}")
             return "icon"
 
-    # 其余（Qwen/DashScope）保持原样
     else:
         dashscope.api_key = QWEN_API_KEY
         image_uri = image if image.startswith("file://") else "file://" + image
