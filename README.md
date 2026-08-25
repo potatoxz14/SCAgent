@@ -197,3 +197,15 @@ The consolidated result set: **76 sensitive in-app actions** across 28 apps, one
 **Folder:** `action_shots/`
 
 One annotated screenshot per action, named `<number>_<app>_<action>.png`, with a **red box marking the exact UI element** the action targets. 
+
+### D. Stage-1 Discovery Agent 
+
+**Folder:** `Mobile-Agent-E/`
+
+The LLM-agent code that produced the artifacts above. It drives an **Android emulator** to explore apps and record the sensitive events. The reconnaissance instruction is in `Mobile-Agent-E/prompts/stage1_android.md`; run it with:
+
+```
+bash Mobile-Agent-E/scripts/run_task.sh
+```
+
+Discovered actions are written to `found_actions.jsonl` at the end of the run. See `Mobile-Agent-E/README.md` for prerequisites (emulator, API key) and options.
