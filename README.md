@@ -102,10 +102,10 @@ python main_diff_gaussian_noise.py
 
 **File:** `main_cross_device.py`
 
-Tests whether a model trained on one set of devices generalizes to **unseen** devices, purely inductively (no target-device data is used for training or model selection). The model is trained on **iPhone 13 + iPhone 16 Pro**, validated on **iPhone 14**, and tested on **iPhone 14 Pro**. Both the web and app-launch tasks are run with their SCAgent_all channel sets. Pipeline: MiniRocket (10k) -> PCA (250) -> One-vs-Rest TabPFN.
+Tests whether a model trained on one set of devices generalizes to **unseen** devices, purely inductively (no target-device data is used for training or model selection). 
 
 - **Configuration:** `TRAIN_DEVICES`, `EVAL_DEVICE`, `TEST_DEVICE`, and the per-task device folders / channels are set at the top of the file.
-- **Output:** Evaluation accuracy on iPhone 14 and test accuracy on iPhone 14 Pro, for each task.
+- **Output:** Evaluation accuracy on `EVAL_DEVICE` and test accuracy on `TEST_DEVICE`, for each task.
 
 **Usage:**
 
