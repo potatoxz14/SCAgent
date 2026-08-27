@@ -172,13 +172,11 @@ A helper module handling GPU-accelerated PCA operations using `cuml` and `cupy`.
 
 ## 7. Mobile-App Sensitive-Action Discovery: Logs & Results
 
-In addition to the website/CSV classification pipeline above, this repository ships the artifacts from the **LLM-agent exploration of mobile apps**. Here an agent drives Android devices to discover in-app actions whose *button identity itself* leaks a private user fact (e.g., a health condition, pregnancy, financial distress, sexual activity, or travel intent), together with the analysis of *why* each action is sensitive.
-
 ### A. Exploration Logs
 
 **Folder:** `logs/`
 
-Raw, human-readable transcripts of the agent's device-exploration sessions (one `*.log.txt` per session). Each log records, step by step, how the agent launched an app, navigated its UI (taps / screenshots), reasoned about whether a screen exposes a private fact, and recorded the qualifying actions — including which apps it rejected and why. These logs document the full discovery process behind the results below.
+ human-readable transcripts of the agent's device-exploration sessions (one `*.json` per session). Each log records, step by step, how the agent launched an app, navigated its UI (taps / screenshots), reasoned about whether a screen exposes a private fact, and recorded the qualifying actions.
 
 ### B. Discovered Sensitive Actions (Results + Analysis)
 
