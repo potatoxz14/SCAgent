@@ -3,11 +3,11 @@
   "trace_id": "adb_agent_02",
   "task": {
     "instruction": "Work through them one app at a time. When done, report: total actions found, apps covered, and the notable per-app findings.",
-    "system_prompt": "# ROLE\nYou are a mobile-app side-channel reconnaissance agent. You directly drive an Android phone through ADB to explore apps and find \"sensitive actions\".\n\nCORE THREAT MODEL — READ THIS FIRST\nThe side channel can only identify WHICH action/event occurred (action fingerprinting). It CANNOT recover the content that loads AFTER the tap.\n=> Therefore the sensitive information must be encoded in the ACTION ITSELF.\n\nA sensitive action = a tap where, if an attacker learns \"the user performed THIS exact action\", they DIRECTLY learn a concrete private fact — independent of any content that loads afterward.\n\nThe action's IDENTITY must be the secret. Knowing merely that this specific button was pressed must, by itself, reveal a concrete private fact about the user. Look for controls whose own label/function commits the user to a specific private category — a health status or medical behavior, a borrowing/installment/repayment or insurance-type intent, a family/life-stage state, a gender/identity/orientation selection, or a location/travel commitment (acting on the real-world current position, a saved home/work route, a specific pre-filled route or departure point, a \"nearby\" scope). In each case, merely knowing this control fired reveals the fact.\n\nBAD — do NOT record these (the secret lives only in post-tap content, which the side channel CANNOT read):\n- opening a generic container (an inbox, \"my orders\", a profile) -> only reveals \"the user opened it\", not which item\n- opening a home / recommended feed, playing \"a video\", opening search results -> only \"browsing\", content unknown\n- opening a generic detail page reached from a list -> the channel can't tell which item it was\nIf the private fact would only be knowable by reading what loads after the tap, it does NOT qualify.\n\nALSO REQUIRED: the action must be side-channel-DISTINGUISHABLE\nFor the channel to identify that THIS action fired, the tap must produce a distinct footprint — i.e., it triggers real work (network request / GPU render / memory / NPU on-device ML), so it can be told apart from other actions and from baseline. A button that does nothing observable is useless.\n\nDEVICE CONTROL (ADB over USB/TCP)\nOperate the phone with Bash + the Read tool (to view screenshots).\n\nScreenshot -> view\nadb exec-out screencap -p > <screenshot>\nThen Read <screenshot>.\n\nTap at a PIXEL x,y (Android input uses screenshot pixels directly)\nadb shell input tap X Y\n\nSwipe / scroll (to reveal off-screen elements)\nadb shell input swipe X1 Y1 X2 Y2 DURATION_MS\n\nLaunch app (before each app, for a clean start): force-stop then relaunch\nadb shell am force-stop PUT_PACKAGE_HERE\nadb shell monkey -p PUT_PACKAGE_HERE -c android.intent.category.LAUNCHER 1\n\nHome screen / Back (dismiss a pop-up)\nadb shell input keyevent 3   # HOME\nadb shell input keyevent 4   # BACK\n\nResolve a package name if unsure\nadb shell pm list packages | grep -i KEYWORD\n\nPREFER / AVOID\nPREFER: fixed, always-present, semantically-loaded buttons/tabs/category items whose LABEL itself reveals a private fact (health, finance, family, identity, orientation, location/travel, specific sensitive interests). Reproducible, deterministic.\nAVOID:\n1) generic containers (inbox, home/recommended feed, \"my orders\", a profile, search) where the secret is in the content, not the action itself;\n2) recommended / \"For You\" / dynamic content that changes each visit;\n3) static value displays already on screen (a phone number, a balance);\n4) login / registration walls;\n5) toggles/settings that trigger no work;\n6) anything requiring typing or search.\n\nHOW TO EXPLORE EACH APP\n1. Launch by package name (force-stop + relaunch = clean start).\n2. Screenshot -> read.\n3. Actively HUNT for the app's most self-revealing controls — buttons/tabs/category entries whose identity alone commits the user to a private category, spanning dimensions such as:\n   - health status / conditions / medical behaviors\n   - financial intent (borrowing / installment / repayment / a specific insurance type)\n   - family / life-stage state\n   - identity / gender / orientation selection\n   - LOCATION & TRAVEL (act-on-current-location, saved home/work route shortcut, a specific pre-filled route or departure point, a \"nearby\" scope)\n   - other specific sensitive-interest categories\nGo at most 5 levels deep. Close pop-ups; do NOT log in, pay, or submit data.\n4. Find 6–7 such actions per app. Each must pass BOTH: (i) its identity is a private fact, (ii) it triggers distinguishable side-channel work.\n5. For each, actually tap it once to VERIFY the path, and record the exact tap path in PIXELS.\n6. Move to the next app.\n\nOUTPUT (append one JSON line per action to found_actions.jsonl):\n{\"app\":\"<app name>\",\"package\":\"<android.package.name>\",\"action\":\"<what the button is>\",\"tap_path\":[[X,Y]],\"measured_tap\":[X,Y],\"secret_revealed\":\"<the private fact this button leaks>\",\"channel\":\"Network\",\"reproducible\":true}\n- action: what the control is; secret_revealed: the concrete private fact that pressing THIS button leaks by its identity alone.\n- tap_path: full pixel-tap sequence to reach + perform it; last = measured_tap.\n- channel: Network / GPU / Memory / NPU. Save as you go, do not batch to the end.\n\nAPPS TO EXPLORE IN THIS BATCH\n- Qunar Travel  (com.qunar.iphoneclient8)\n- BOSS直聘  (com.hpbr.bosszhipin)\n- Dazz Cam  (dazz.camera.vintagecamera)\n- bilibili  (tv.danmaku.bilianime)\n- 转转  (com.wuba.zhuanzhuan)\n- 百度  (com.baidu.BaiduMobile)\n- Netflix  (com.netflix.Netflix)\n- DeepSeek  (com.deepseek.chat)\n- Pinduoduo  (com.xunmeng.pinduoduo)\n- Luckin Coffee  (com.luckin.client.i)\n- 京东  (com.360buy.jdmobile)\n- 闲鱼  (com.taobao.fleamarket)\n- 腾讯视频  (com.tencent.live4iphone)\n- 携程旅行  (ctrip.com)\n- 同程旅行  (com.tongcheng.iphone)\n- DJI Mimo  (com.dji.mimo)\n- QQ浏览器  (com.tencent.mttlite)\n- Temu: Shop Like a Billionaire  (com.einnovation.temu)\n- Amazon Prime Video  (com.amazon.aiv.AIVApp)\n- Indeed Job Search  (com.indeed.JobSearch)\n- Google Docs  (com.google.Docs)\n- ReelShort - Stream Drama & TV  (com.newleaf.app.ios.vic)\n- AliExpress - Shopping App  (com.alibaba.iAliexpress)\n- 快手  (com.jiangjia.gif)\n- Dewu  (com.siwuai.duapp)\n- CamScanner  (com.intsig.CamScannerLite)\nWork through them one app at a time. When done, report: total actions found, apps covered, and the notable per-app findings.",
+    "system_prompt": "# ROLE\nYou are a mobile-app side-channel reconnaissance agent. You directly drive an Android phone through ADB to explore apps and find \"sensitive actions\".\n\nCORE THREAT MODEL — READ THIS FIRST\nThe side channel can only identify WHICH action/event occurred (action fingerprinting). It CANNOT recover the content that loads AFTER the tap.\n=> Therefore the sensitive information must be encoded in the ACTION ITSELF.\n\nA sensitive action = a tap where, if an attacker learns \"the user performed THIS exact action\", they DIRECTLY learn a concrete private fact — independent of any content that loads afterward.\n\nThe action's IDENTITY must be the secret. Knowing merely that this specific button was pressed must, by itself, reveal a concrete private fact about the user. Look for controls whose own label/function commits the user to a specific private category — a health status or medical behavior, a borrowing/installment/repayment or insurance-type intent, a family/life-stage state, a gender/identity/orientation selection, or a location/travel commitment (acting on the real-world current position, a saved home/work route, a specific pre-filled route or departure point, a \"nearby\" scope). In each case, merely knowing this control fired reveals the fact.\n\nBAD — do NOT record these (the secret lives only in post-tap content, which the side channel CANNOT read):\n- opening a generic container (an inbox, \"my orders\", a profile) -> only reveals \"the user opened it\", not which item\n- opening a home / recommended feed, playing \"a video\", opening search results -> only \"browsing\", content unknown\n- opening a generic detail page reached from a list -> the channel can't tell which item it was\nIf the private fact would only be knowable by reading what loads after the tap, it does NOT qualify.\n\nALSO REQUIRED: the action must be side-channel-DISTINGUISHABLE\nFor the channel to identify that THIS action fired, the tap must produce a distinct footprint — i.e., it triggers real work (network request / GPU render / memory / NPU on-device ML), so it can be told apart from other actions and from baseline. A button that does nothing observable is useless.\n\nDEVICE CONTROL (ADB over USB/TCP)\nOperate the phone with Bash + the Read tool (to view screenshots).\n\nScreenshot -> view\nadb exec-out screencap -p > <screenshot>\nThen Read <screenshot>.\n\nTap at a PIXEL x,y (Android input uses screenshot pixels directly)\nadb shell input tap X Y\n\nSwipe / scroll (to reveal off-screen elements)\nadb shell input swipe X1 Y1 X2 Y2 DURATION_MS\n\nLaunch app (before each app, for a clean start): force-stop then relaunch\nadb shell am force-stop PUT_PACKAGE_HERE\nadb shell monkey -p PUT_PACKAGE_HERE -c android.intent.category.LAUNCHER 1\n\nHome screen / Back (dismiss a pop-up)\nadb shell input keyevent 3   # HOME\nadb shell input keyevent 4   # BACK\n\nResolve a package name if unsure\nadb shell pm list packages | grep -i KEYWORD\n\nPREFER / AVOID\nPREFER: fixed, always-present, semantically-loaded buttons/tabs/category items whose LABEL itself reveals a private fact (health, finance, family, identity, orientation, location/travel, specific sensitive interests). Reproducible, deterministic.\nAVOID:\n1) generic containers (inbox, home/recommended feed, \"my orders\", a profile, search) where the secret is in the content, not the action itself;\n2) recommended / \"For You\" / dynamic content that changes each visit;\n3) static value displays already on screen (a phone number, a balance);\n4) login / registration walls;\n5) toggles/settings that trigger no work;\n6) anything requiring typing or search.\n\nHOW TO EXPLORE EACH APP\n1. Launch by package name (force-stop + relaunch = clean start).\n2. Screenshot -> read.\n3. Actively HUNT for the app's most self-revealing controls — buttons/tabs/category entries whose identity alone commits the user to a private category, spanning dimensions such as:\n   - health status / conditions / medical behaviors\n   - financial intent (borrowing / installment / repayment / a specific insurance type)\n   - family / life-stage state\n   - identity / gender / orientation selection\n   - LOCATION & TRAVEL (act-on-current-location, saved home/work route shortcut, a specific pre-filled route or departure point, a \"nearby\" scope)\n   - other specific sensitive-interest categories\nGo at most 5 levels deep. Close pop-ups; do NOT log in, pay, or submit data.\n4. Find 6–7 such actions per app. Each must pass BOTH: (i) its identity is a private fact, (ii) it triggers distinguishable side-channel work.\n5. For each, actually tap it once to VERIFY the path, and record the exact tap path in PIXELS.\n6. Move to the next app.\n\nOUTPUT (append one JSON line per action to found_actions.jsonl):\n{\"app\":\"<app name>\",\"package\":\"<android.package.name>\",\"action\":\"<what the button is>\",\"tap_path\":[[X,Y]],\"measured_tap\":[X,Y],\"secret_revealed\":\"<the private fact this button leaks>\",\"channel\":\"Network\",\"reproducible\":true}\n- action: what the control is; secret_revealed: the concrete private fact that pressing THIS button leaks by its identity alone.\n- tap_path: full pixel-tap sequence to reach + perform it; last = measured_tap.\n- channel: Network / GPU / Memory / NPU. Save as you go, do not batch to the end.\n\nAPPS TO EXPLORE IN THIS BATCH\n- Qunar Travel  (com.Qunar)\n- BOSS直聘  (com.hpbr.bosszhipin)\n- Dazz Cam  (com.dazzcam.cameradazzcam)\n- bilibili  (tv.danmaku.bili)\n- 转转  (com.wuba.zhuanzhuan)\n- 百度  (com.baidu.searchbox)\n- Netflix  (com.netflix.mediaclient)\n- DeepSeek  (com.deepseek.chat)\n- Pinduoduo  (com.xunmeng.pinduoduo)\n- Luckin Coffee  (com.lucky.luckyclient)\n- 京东  (com.jingdong.app.mall)\n- 闲鱼  (com.taobao.idlefish)\n- 腾讯视频  (com.tencent.qqlive)\n- 携程旅行  (ctrip.android.view)\n- 同程旅行  (com.tongcheng.android)\n- DJI Mimo  (dji.mimo)\n- QQ浏览器  (com.tencent.mtt)\n- Temu: Shop Like a Billionaire  (com.einnovation.temu)\n- Amazon Prime Video  (com.amazon.avod.thirdpartyclient)\n- Indeed Job Search  (com.indeed.android.jobsearch)\n- Google Docs  (com.google.android.apps.docs.editors.docs)\n- ReelShort - Stream Drama & TV  (com.newleaf.app.android.victor)\n- AliExpress - Shopping App  (com.alibaba.aliexpresshd)\n- 快手  (com.smile.gifmaker)\n- Dewu  (com.shizhuang.duapp)\n- CamScanner  (com.intsig.camscanner)\nWork through them one app at a time. When done, report: total actions found, apps covered, and the notable per-app findings.",
     "target_apps": [
       {
         "name": "Qunar Travel",
-        "package": "com.qunar.iphoneclient8"
+        "package": "com.Qunar"
       },
       {
         "name": "BOSS直聘",
@@ -15,11 +15,11 @@
       },
       {
         "name": "Dazz Cam",
-        "package": "dazz.camera.vintagecamera"
+        "package": "com.dazzcam.cameradazzcam"
       },
       {
         "name": "bilibili",
-        "package": "tv.danmaku.bilianime"
+        "package": "tv.danmaku.bili"
       },
       {
         "name": "转转",
@@ -27,11 +27,11 @@
       },
       {
         "name": "百度",
-        "package": "com.baidu.BaiduMobile"
+        "package": "com.baidu.searchbox"
       },
       {
         "name": "Netflix",
-        "package": "com.netflix.Netflix"
+        "package": "com.netflix.mediaclient"
       },
       {
         "name": "DeepSeek",
@@ -43,35 +43,35 @@
       },
       {
         "name": "Luckin Coffee",
-        "package": "com.luckin.client.i"
+        "package": "com.lucky.luckyclient"
       },
       {
         "name": "京东",
-        "package": "com.360buy.jdmobile"
+        "package": "com.jingdong.app.mall"
       },
       {
         "name": "闲鱼",
-        "package": "com.taobao.fleamarket"
+        "package": "com.taobao.idlefish"
       },
       {
         "name": "腾讯视频",
-        "package": "com.tencent.live4iphone"
+        "package": "com.tencent.qqlive"
       },
       {
         "name": "携程旅行",
-        "package": "ctrip.com"
+        "package": "ctrip.android.view"
       },
       {
         "name": "同程旅行",
-        "package": "com.tongcheng.iphone"
+        "package": "com.tongcheng.android"
       },
       {
         "name": "DJI Mimo",
-        "package": "com.dji.mimo"
+        "package": "dji.mimo"
       },
       {
         "name": "QQ浏览器",
-        "package": "com.tencent.mttlite"
+        "package": "com.tencent.mtt"
       },
       {
         "name": "Temu: Shop Like a Billionaire",
@@ -79,35 +79,35 @@
       },
       {
         "name": "Amazon Prime Video",
-        "package": "com.amazon.aiv.AIVApp"
+        "package": "com.amazon.avod.thirdpartyclient"
       },
       {
         "name": "Indeed Job Search",
-        "package": "com.indeed.JobSearch"
+        "package": "com.indeed.android.jobsearch"
       },
       {
         "name": "Google Docs",
-        "package": "com.google.Docs"
+        "package": "com.google.android.apps.docs.editors.docs"
       },
       {
         "name": "ReelShort - Stream Drama & TV",
-        "package": "com.newleaf.app.ios.vic"
+        "package": "com.newleaf.app.android.victor"
       },
       {
         "name": "AliExpress - Shopping App",
-        "package": "com.alibaba.iAliexpress"
+        "package": "com.alibaba.aliexpresshd"
       },
       {
         "name": "快手",
-        "package": "com.jiangjia.gif"
+        "package": "com.smile.gifmaker"
       },
       {
         "name": "Dewu",
-        "package": "com.siwuai.duapp"
+        "package": "com.shizhuang.duapp"
       },
       {
         "name": "CamScanner",
-        "package": "com.intsig.CamScannerLite"
+        "package": "com.intsig.camscanner"
       }
     ],
     "tips": "PREFER / AVOID\nPREFER: fixed, always-present, semantically-loaded buttons/tabs/category items whose LABEL itself reveals a private fact (health, finance, family, identity, orientation, location/travel, specific sensitive interests). Reproducible, deterministic.\nAVOID:\n1) generic containers (inbox, home/recommended feed, \"my orders\", a profile, search) where the secret is in the content, not the action itself;\n2) recommended / \"For You\" / dynamic content that changes each visit;\n3) static value displays already on screen (a phone number, a balance);\n4) login / registration walls;\n5) toggles/settings that trigger no work;\n6) anything requiring typing or search.",
@@ -121,7 +121,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.qunar.iphoneclient8"
+          "package": "com.Qunar"
         }
       },
       "atomic_actions": [
@@ -129,7 +129,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.qunar.iphoneclient8"
+            "package": "com.Qunar"
           }
         },
         {
@@ -302,7 +302,7 @@
         "arguments": {
           "record": {
             "app": "Qunar Travel",
-            "bundle": "com.qunar.iphoneclient8",
+            "package": "com.Qunar",
             "action": "tap '借钱 (Borrow Money)/分期 (Installment)' category on home grid (opens 携程金融·拿去花 (Naquhua Credit) consumer-loan/installment signup)",
             "tap_path": [
               [
@@ -326,7 +326,7 @@
           "arguments": {
             "record": {
               "app": "Qunar Travel",
-              "bundle": "com.qunar.iphoneclient8",
+              "package": "com.Qunar",
               "action": "tap '借钱 (Borrow Money)/分期 (Installment)' category on home grid (opens 携程金融·拿去花 (Naquhua Credit) consumer-loan/installment signup)",
               "tap_path": [
                 [
@@ -374,7 +374,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.qunar.iphoneclient8"
+            "package": "com.Qunar"
           }
         }
       ]
@@ -387,7 +387,7 @@
         "arguments": {
           "record": {
             "app": "Qunar Travel",
-            "bundle": "com.qunar.iphoneclient8",
+            "package": "com.Qunar",
             "action": "tap '接机 (Airport Pickup)/送机 (Airport Drop-off)' category on home grid (opens airport pickup/dropoff booking: 去机场接您/送您去机场)",
             "tap_path": [
               [
@@ -411,7 +411,7 @@
           "arguments": {
             "record": {
               "app": "Qunar Travel",
-              "bundle": "com.qunar.iphoneclient8",
+              "package": "com.Qunar",
               "action": "tap '接机 (Airport Pickup)/送机 (Airport Drop-off)' category on home grid (opens airport pickup/dropoff booking: 去机场接您/送您去机场)",
               "tap_path": [
                 [
@@ -446,7 +446,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.qunar.iphoneclient8"
+            "package": "com.Qunar"
           }
         },
         {
@@ -502,7 +502,7 @@
         "arguments": {
           "record": {
             "app": "Qunar Travel",
-            "bundle": "com.qunar.iphoneclient8",
+            "package": "com.Qunar",
             "action": "tap '景点 (Attractions)·门票 (Tickets)' then '环球影城 (Universal Studios)' chip (opens 北京环球度假区/Beijing Universal Resort ticket page)",
             "tap_path": [
               [
@@ -530,7 +530,7 @@
           "arguments": {
             "record": {
               "app": "Qunar Travel",
-              "bundle": "com.qunar.iphoneclient8",
+              "package": "com.Qunar",
               "action": "tap '景点 (Attractions)·门票 (Tickets)' then '环球影城 (Universal Studios)' chip (opens 北京环球度假区/Beijing Universal Resort ticket page)",
               "tap_path": [
                 [
@@ -622,7 +622,7 @@
         "arguments": {
           "record": {
             "app": "BOSS直聘",
-            "bundle": "com.hpbr.bosszhipin",
+            "package": "com.hpbr.bosszhipin",
             "action": "tap '兼职 (Part-time)' (part-time) tab on job feed",
             "tap_path": [
               [
@@ -646,7 +646,7 @@
           "arguments": {
             "record": {
               "app": "BOSS直聘",
-              "bundle": "com.hpbr.bosszhipin",
+              "package": "com.hpbr.bosszhipin",
               "action": "tap '兼职 (Part-time)' (part-time) tab on job feed",
               "tap_path": [
                 [
@@ -704,7 +704,7 @@
         "arguments": {
           "record": {
             "app": "BOSS直聘",
-            "bundle": "com.hpbr.bosszhipin",
+            "package": "com.hpbr.bosszhipin",
             "action": "tap '附近 (Nearby)' (nearby) tab on job feed (opens map + requests current location)",
             "tap_path": [
               [
@@ -728,7 +728,7 @@
           "arguments": {
             "record": {
               "app": "BOSS直聘",
-              "bundle": "com.hpbr.bosszhipin",
+              "package": "com.hpbr.bosszhipin",
               "action": "tap '附近 (Nearby)' (nearby) tab on job feed (opens map + requests current location)",
               "tap_path": [
                 [
@@ -755,7 +755,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "dazz.camera.vintagecamera"
+          "package": "com.dazzcam.cameradazzcam"
         }
       },
       "atomic_actions": [
@@ -763,7 +763,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "dazz.camera.vintagecamera"
+            "package": "com.dazzcam.cameradazzcam"
           }
         },
         {
@@ -785,7 +785,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "tv.danmaku.bilianime"
+          "package": "tv.danmaku.bili"
         }
       },
       "atomic_actions": [
@@ -793,7 +793,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "tv.danmaku.bilianime"
+            "package": "tv.danmaku.bili"
           }
         },
         {
@@ -875,7 +875,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.baidu.BaiduMobile"
+          "package": "com.baidu.searchbox"
         }
       },
       "atomic_actions": [
@@ -883,7 +883,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.baidu.BaiduMobile"
+            "package": "com.baidu.searchbox"
           }
         },
         {
@@ -905,7 +905,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.netflix.Netflix"
+          "package": "com.netflix.mediaclient"
         }
       },
       "atomic_actions": [
@@ -913,7 +913,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.netflix.Netflix"
+            "package": "com.netflix.mediaclient"
           }
         },
         {
@@ -1026,7 +1026,7 @@
         "arguments": {
           "record": {
             "app": "Pinduoduo",
-            "bundle": "com.xunmeng.pinduoduo",
+            "package": "com.xunmeng.pinduoduo",
             "action": "tap '医药 (Medicine)' tab then '慢病开药 (Chronic-disease Prescription)' (chronic-disease prescription) tile",
             "tap_path": [
               [
@@ -1054,7 +1054,7 @@
           "arguments": {
             "record": {
               "app": "Pinduoduo",
-              "bundle": "com.xunmeng.pinduoduo",
+              "package": "com.xunmeng.pinduoduo",
               "action": "tap '医药 (Medicine)' tab then '慢病开药 (Chronic-disease Prescription)' (chronic-disease prescription) tile",
               "tap_path": [
                 [
@@ -1085,7 +1085,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.luckin.client.i"
+          "package": "com.lucky.luckyclient"
         }
       },
       "atomic_actions": [
@@ -1093,7 +1093,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.luckin.client.i"
+            "package": "com.lucky.luckyclient"
           }
         },
         {
@@ -1115,7 +1115,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.360buy.jdmobile"
+          "package": "com.jingdong.app.mall"
         }
       },
       "atomic_actions": [
@@ -1123,7 +1123,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.360buy.jdmobile"
+            "package": "com.jingdong.app.mall"
           }
         },
         {
@@ -1178,7 +1178,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.taobao.fleamarket"
+          "package": "com.taobao.idlefish"
         }
       },
       "atomic_actions": [
@@ -1186,7 +1186,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.taobao.fleamarket"
+            "package": "com.taobao.idlefish"
           }
         },
         {
@@ -1238,7 +1238,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.tencent.live4iphone"
+          "package": "com.tencent.qqlive"
         }
       },
       "atomic_actions": [
@@ -1246,7 +1246,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.tencent.live4iphone"
+            "package": "com.tencent.qqlive"
           }
         },
         {
@@ -1298,7 +1298,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "ctrip.com"
+          "package": "ctrip.android.view"
         }
       },
       "atomic_actions": [
@@ -1306,7 +1306,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "ctrip.com"
+            "package": "ctrip.android.view"
           }
         },
         {
@@ -1419,7 +1419,7 @@
         "arguments": {
           "record": {
             "app": "携程旅行",
-            "bundle": "ctrip.com",
+            "package": "ctrip.android.view",
             "action": "tap '+14个更多产品' then '借钱 (Borrow Money)/分期 (Installment)' (opens 携程金融·免息分期 consumer-loan page: 信用贷/拿去花 (Naquhua Credit)/生意人贷)",
             "tap_path": [
               [
@@ -1447,7 +1447,7 @@
           "arguments": {
             "record": {
               "app": "携程旅行",
-              "bundle": "ctrip.com",
+              "package": "ctrip.android.view",
               "action": "tap '+14个更多产品' then '借钱 (Borrow Money)/分期 (Installment)' (opens 携程金融·免息分期 consumer-loan page: 信用贷/拿去花 (Naquhua Credit)/生意人贷)",
               "tap_path": [
                 [
@@ -1486,7 +1486,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "ctrip.com"
+            "package": "ctrip.android.view"
           }
         },
         {
@@ -1542,7 +1542,7 @@
         "arguments": {
           "record": {
             "app": "携程旅行",
-            "bundle": "ctrip.com",
+            "package": "ctrip.android.view",
             "action": "tap '+14个更多产品' then '签证 (Visa)' (opens 签证 (Visa)/visa services page with per-country visa options)",
             "tap_path": [
               [
@@ -1570,7 +1570,7 @@
           "arguments": {
             "record": {
               "app": "携程旅行",
-              "bundle": "ctrip.com",
+              "package": "ctrip.android.view",
               "action": "tap '+14个更多产品' then '签证 (Visa)' (opens 签证 (Visa)/visa services page with per-country visa options)",
               "tap_path": [
                 [
@@ -1601,7 +1601,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.tongcheng.iphone"
+          "package": "com.tongcheng.android"
         }
       },
       "atomic_actions": [
@@ -1609,7 +1609,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.tongcheng.iphone"
+            "package": "com.tongcheng.android"
           }
         },
         {
@@ -1758,7 +1758,7 @@
         "arguments": {
           "record": {
             "app": "同程旅行",
-            "bundle": "com.tongcheng.iphone",
+            "package": "com.tongcheng.android",
             "action": "tap '借钱 (Borrow Money)' category on home grid (opens 同程易融 consumer-loan page, 最高可借30万)",
             "tap_path": [
               [
@@ -1782,7 +1782,7 @@
           "arguments": {
             "record": {
               "app": "同程旅行",
-              "bundle": "com.tongcheng.iphone",
+              "package": "com.tongcheng.android",
               "action": "tap '借钱 (Borrow Money)' category on home grid (opens 同程易融 consumer-loan page, 最高可借30万)",
               "tap_path": [
                 [
@@ -1809,7 +1809,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.tencent.mttlite"
+          "package": "com.tencent.mtt"
         }
       },
       "atomic_actions": [
@@ -1817,7 +1817,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.tencent.mttlite"
+            "package": "com.tencent.mtt"
           }
         },
         {
@@ -1965,7 +1965,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.indeed.JobSearch"
+          "package": "com.indeed.android.jobsearch"
         }
       },
       "atomic_actions": [
@@ -1973,7 +1973,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.indeed.JobSearch"
+            "package": "com.indeed.android.jobsearch"
           }
         },
         {
@@ -1995,7 +1995,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.alibaba.iAliexpress"
+          "package": "com.alibaba.aliexpresshd"
         }
       },
       "atomic_actions": [
@@ -2003,7 +2003,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.alibaba.iAliexpress"
+            "package": "com.alibaba.aliexpresshd"
           }
         },
         {
@@ -2058,7 +2058,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.jiangjia.gif"
+          "package": "com.smile.gifmaker"
         }
       },
       "atomic_actions": [
@@ -2066,7 +2066,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.jiangjia.gif"
+            "package": "com.smile.gifmaker"
           }
         },
         {
@@ -2121,7 +2121,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.siwuai.duapp"
+          "package": "com.shizhuang.duapp"
         }
       },
       "atomic_actions": [
@@ -2129,7 +2129,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.siwuai.duapp"
+            "package": "com.shizhuang.duapp"
           }
         },
         {
@@ -2181,7 +2181,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.intsig.CamScannerLite"
+          "package": "com.intsig.camscanner"
         }
       },
       "atomic_actions": [
@@ -2189,7 +2189,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.intsig.CamScannerLite"
+            "package": "com.intsig.camscanner"
           }
         },
         {
@@ -2301,7 +2301,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.dji.mimo"
+          "package": "dji.mimo"
         }
       },
       "atomic_actions": [
@@ -2309,7 +2309,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.dji.mimo"
+            "package": "dji.mimo"
           }
         },
         {
@@ -2331,7 +2331,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.amazon.aiv.AIVApp"
+          "package": "com.amazon.avod.thirdpartyclient"
         }
       },
       "atomic_actions": [
@@ -2339,7 +2339,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.amazon.aiv.AIVApp"
+            "package": "com.amazon.avod.thirdpartyclient"
           }
         },
         {
@@ -2361,7 +2361,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.google.Docs"
+          "package": "com.google.android.apps.docs.editors.docs"
         }
       },
       "atomic_actions": [
@@ -2369,7 +2369,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.google.Docs"
+            "package": "com.google.android.apps.docs.editors.docs"
           }
         },
         {
@@ -2391,7 +2391,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.newleaf.app.ios.vic"
+          "package": "com.newleaf.app.android.victor"
         }
       },
       "atomic_actions": [
@@ -2399,7 +2399,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.newleaf.app.ios.vic"
+            "package": "com.newleaf.app.android.victor"
           }
         },
         {
@@ -2419,7 +2419,7 @@
   "found_actions": [
     {
       "app": "Qunar Travel",
-      "bundle": "com.qunar.iphoneclient8",
+      "package": "com.Qunar",
       "action": "tap '借钱 (Borrow Money)/分期 (Installment)' category on home grid (opens 携程金融·拿去花 (Naquhua Credit) consumer-loan/installment signup)",
       "tap_path": [
         [
@@ -2437,7 +2437,7 @@
     },
     {
       "app": "Qunar Travel",
-      "bundle": "com.qunar.iphoneclient8",
+      "package": "com.Qunar",
       "action": "tap '接机 (Airport Pickup)/送机 (Airport Drop-off)' category on home grid (opens airport pickup/dropoff booking: 去机场接您/送您去机场)",
       "tap_path": [
         [
@@ -2455,7 +2455,7 @@
     },
     {
       "app": "Qunar Travel",
-      "bundle": "com.qunar.iphoneclient8",
+      "package": "com.Qunar",
       "action": "tap '景点 (Attractions)·门票 (Tickets)' then '环球影城 (Universal Studios)' chip (opens 北京环球度假区/Beijing Universal Resort ticket page)",
       "tap_path": [
         [
@@ -2477,7 +2477,7 @@
     },
     {
       "app": "BOSS直聘",
-      "bundle": "com.hpbr.bosszhipin",
+      "package": "com.hpbr.bosszhipin",
       "action": "tap '兼职 (Part-time)' (part-time) tab on job feed",
       "tap_path": [
         [
@@ -2495,7 +2495,7 @@
     },
     {
       "app": "BOSS直聘",
-      "bundle": "com.hpbr.bosszhipin",
+      "package": "com.hpbr.bosszhipin",
       "action": "tap '附近 (Nearby)' (nearby) tab on job feed (opens map + requests current location)",
       "tap_path": [
         [
@@ -2513,7 +2513,7 @@
     },
     {
       "app": "Pinduoduo",
-      "bundle": "com.xunmeng.pinduoduo",
+      "package": "com.xunmeng.pinduoduo",
       "action": "tap '医药 (Medicine)' tab then '慢病开药 (Chronic-disease Prescription)' (chronic-disease prescription) tile",
       "tap_path": [
         [
@@ -2535,7 +2535,7 @@
     },
     {
       "app": "携程旅行",
-      "bundle": "ctrip.com",
+      "package": "ctrip.android.view",
       "action": "tap '+14个更多产品' then '借钱 (Borrow Money)/分期 (Installment)' (opens 携程金融·免息分期 consumer-loan page: 信用贷/拿去花 (Naquhua Credit)/生意人贷)",
       "tap_path": [
         [
@@ -2557,7 +2557,7 @@
     },
     {
       "app": "携程旅行",
-      "bundle": "ctrip.com",
+      "package": "ctrip.android.view",
       "action": "tap '+14个更多产品' then '签证 (Visa)' (opens 签证 (Visa)/visa services page with per-country visa options)",
       "tap_path": [
         [
@@ -2579,7 +2579,7 @@
     },
     {
       "app": "同程旅行",
-      "bundle": "com.tongcheng.iphone",
+      "package": "com.tongcheng.android",
       "action": "tap '借钱 (Borrow Money)' category on home grid (opens 同程易融 consumer-loan page, 最高可借30万)",
       "tap_path": [
         [

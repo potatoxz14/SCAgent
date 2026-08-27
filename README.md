@@ -185,7 +185,7 @@ A helper module handling GPU-accelerated PCA operations using `cuml` and `cupy`.
 The consolidated result set: **76 sensitive in-app actions** across 28 apps, one JSON object per line. Each entry **also contains the sensitivity analysis** — the `secret_revealed` field states the private fact that is exposed when the user performs the action. Fields:
 
 - `number` — action ID (1–76), matching the paper's appendix table.
-- `app` / `bundle` — the application and its bundle/package id.
+- `app` — the application name.
 - `action` — the exact navigation path / button tapped.
 - `secret_revealed` — **the private fact the action leaks** (i.e., the sensitivity analysis).
 - `screenshot` — relative path to the annotated screenshot for this action.
@@ -200,10 +200,10 @@ One annotated screenshot per action, named `<number>_<app>_<action>.png`, with a
 
 **Folder:** `Mobile-Agent-E/`
 
-The LLM-agent code that produced the artifacts above. It drives an **Android emulator** to explore apps and record the sensitive events. The reconnaissance instruction is in `Mobile-Agent-E/prompts/stage1_android.md`; run it with:
+The LLM-agent code that produced the artifacts above. It drives an **Android device** to explore apps and record the sensitive events. The reconnaissance instruction is in `Mobile-Agent-E/prompts/stage1_android.md`; run it with:
 
 ```
 bash Mobile-Agent-E/scripts/run_task.sh
 ```
 
-Discovered actions are written to `found_actions.jsonl` at the end of the run. See `Mobile-Agent-E/README.md` for prerequisites (emulator, API key) and options.
+Discovered actions are written to `found_actions.jsonl` at the end of the run.

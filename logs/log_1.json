@@ -3,27 +3,27 @@
   "trace_id": "adb_agent_01",
   "task": {
     "instruction": "Work through them one app at a time. When done, report: total actions found, apps covered, and the notable per-app findings.",
-    "system_prompt": "# ROLE\nYou are a mobile-app side-channel reconnaissance agent. You directly drive an Android phone through ADB to explore apps and find \"sensitive actions\".\n\nCORE THREAT MODEL — READ THIS FIRST\nThe side channel can only identify WHICH action/event occurred (action fingerprinting). It CANNOT recover the content that loads AFTER the tap.\n=> Therefore the sensitive information must be encoded in the ACTION ITSELF.\n\nA sensitive action = a tap where, if an attacker learns \"the user performed THIS exact action\", they DIRECTLY learn a concrete private fact — independent of any content that loads afterward.\n\nThe action's IDENTITY must be the secret. Knowing merely that this specific button was pressed must, by itself, reveal a concrete private fact about the user. Look for controls whose own label/function commits the user to a specific private category — a health status or medical behavior, a borrowing/installment/repayment or insurance-type intent, a family/life-stage state, a gender/identity/orientation selection, or a location/travel commitment (acting on the real-world current position, a saved home/work route, a specific pre-filled route or departure point, a \"nearby\" scope). In each case, merely knowing this control fired reveals the fact.\n\nBAD — do NOT record these (the secret lives only in post-tap content, which the side channel CANNOT read):\n- opening a generic container (an inbox, \"my orders\", a profile) -> only reveals \"the user opened it\", not which item\n- opening a home / recommended feed, playing \"a video\", opening search results -> only \"browsing\", content unknown\n- opening a generic detail page reached from a list -> the channel can't tell which item it was\nIf the private fact would only be knowable by reading what loads after the tap, it does NOT qualify.\n\nALSO REQUIRED: the action must be side-channel-DISTINGUISHABLE\nFor the channel to identify that THIS action fired, the tap must produce a distinct footprint — i.e., it triggers real work (network request / GPU render / memory / NPU on-device ML), so it can be told apart from other actions and from baseline. A button that does nothing observable is useless.\n\nDEVICE CONTROL (ADB over USB/TCP)\nOperate the phone with Bash + the Read tool (to view screenshots).\n\nScreenshot -> view\nadb exec-out screencap -p > <screenshot>\nThen Read <screenshot>.\n\nTap at a PIXEL x,y (Android input uses screenshot pixels directly)\nadb shell input tap X Y\n\nSwipe / scroll (to reveal off-screen elements)\nadb shell input swipe X1 Y1 X2 Y2 DURATION_MS\n\nLaunch app (before each app, for a clean start): force-stop then relaunch\nadb shell am force-stop PUT_PACKAGE_HERE\nadb shell monkey -p PUT_PACKAGE_HERE -c android.intent.category.LAUNCHER 1\n\nHome screen / Back (dismiss a pop-up)\nadb shell input keyevent 3   # HOME\nadb shell input keyevent 4   # BACK\n\nResolve a package name if unsure\nadb shell pm list packages | grep -i KEYWORD\n\nPREFER / AVOID\nPREFER: fixed, always-present, semantically-loaded buttons/tabs/category items whose LABEL itself reveals a private fact (health, finance, family, identity, orientation, location/travel, specific sensitive interests). Reproducible, deterministic.\nAVOID:\n1) generic containers (inbox, home/recommended feed, \"my orders\", a profile, search) where the secret is in the content, not the action itself;\n2) recommended / \"For You\" / dynamic content that changes each visit;\n3) static value displays already on screen (a phone number, a balance);\n4) login / registration walls;\n5) toggles/settings that trigger no work;\n6) anything requiring typing or search.\n\nHOW TO EXPLORE EACH APP\n1. Launch by package name (force-stop + relaunch = clean start).\n2. Screenshot -> read.\n3. Actively HUNT for the app's most self-revealing controls — buttons/tabs/category entries whose identity alone commits the user to a private category, spanning dimensions such as:\n   - health status / conditions / medical behaviors\n   - financial intent (borrowing / installment / repayment / a specific insurance type)\n   - family / life-stage state\n   - identity / gender / orientation selection\n   - LOCATION & TRAVEL (act-on-current-location, saved home/work route shortcut, a specific pre-filled route or departure point, a \"nearby\" scope)\n   - other specific sensitive-interest categories\nGo at most 5 levels deep. Close pop-ups; do NOT log in, pay, or submit data.\n4. Find 6–7 such actions per app. Each must pass BOTH: (i) its identity is a private fact, (ii) it triggers distinguishable side-channel work.\n5. For each, actually tap it once to VERIFY the path, and record the exact tap path in PIXELS.\n6. Move to the next app.\n\nOUTPUT (append one JSON line per action to found_actions.jsonl):\n{\"app\":\"<app name>\",\"package\":\"<android.package.name>\",\"action\":\"<what the button is>\",\"tap_path\":[[X,Y]],\"measured_tap\":[X,Y],\"secret_revealed\":\"<the private fact this button leaks>\",\"channel\":\"Network\",\"reproducible\":true}\n- action: what the control is; secret_revealed: the concrete private fact that pressing THIS button leaks by its identity alone.\n- tap_path: full pixel-tap sequence to reach + perform it; last = measured_tap.\n- channel: Network / GPU / Memory / NPU. Save as you go, do not batch to the end.\n\nAPPS TO EXPLORE IN THIS BATCH\n- Flipkart - Online Shopping App  (com.appflipkart.flipkart)\n- Meta AI - Vibes & AI Glasses  (com.facebook.stellaapp)\n- Pinterest: Lifestyle Ideas  (pinterest)\n- Instagram  (com.burbn.instagram)\n- AI Catch: AI Video Generator  (com.Prominent.AICatch)\n- Lemon8 - Lifestyle Community  (com.bd.nproject)\n- Truecaller: Caller ID & Block  (com.truesoftware.TrueCallerOther)\n- Microsoft Authenticator  (com.microsoft.azureauthenticator)\n- Google Drive – online backup  (com.google.Drive)\n- Snapchat: Chat with friends  (com.toyopagroup.picaboo)\n- WhatsApp Messenger  (net.whatsapp.WhatsApp)\n- SHEIN-Shopping Online  (zzkko.com.ZZKKO)\n- VN: AI Video Editor  (com.frontrow.vlog)\n- Klook: Travel & Activities  (com.klook.klook)\n- Shanghai Disney Resort  (com.disney.shanghaidisneyland)\n- Canva: AI Video & Photo Editor  (com.canva.canvaeditor)\n- DiDi  (com.xiaojukeji.didi)\n- Zoom Workplace  (us.zoom.videomeetings)\n- Proton VPN: Fast & Secure  (ch.protonmail.vpn)\n- YouTube Music  (com.google.ios.youtubemusic)\n- Hypic - Photo Editor & AI Art  (com.xt.retouchoversea)\n- Dianping  (com.dianping.dpscope)\n- Grab: Taxi Ride, Food Delivery  (com.grabtaxi.iphone)\n- X  (com.atebits.Tweetie2)\n- Messenger  (com.facebook.Messenger)\n- YouTube  (com.google.ios.youtube)\n- DramaBox - Stream Drama Shorts  (com.storymatrix.drama)\nWork through them one app at a time. When done, report: total actions found, apps covered, and the notable per-app findings.",
+    "system_prompt": "# ROLE\nYou are a mobile-app side-channel reconnaissance agent. You directly drive an Android phone through ADB to explore apps and find \"sensitive actions\".\n\nCORE THREAT MODEL — READ THIS FIRST\nThe side channel can only identify WHICH action/event occurred (action fingerprinting). It CANNOT recover the content that loads AFTER the tap.\n=> Therefore the sensitive information must be encoded in the ACTION ITSELF.\n\nA sensitive action = a tap where, if an attacker learns \"the user performed THIS exact action\", they DIRECTLY learn a concrete private fact — independent of any content that loads afterward.\n\nThe action's IDENTITY must be the secret. Knowing merely that this specific button was pressed must, by itself, reveal a concrete private fact about the user. Look for controls whose own label/function commits the user to a specific private category — a health status or medical behavior, a borrowing/installment/repayment or insurance-type intent, a family/life-stage state, a gender/identity/orientation selection, or a location/travel commitment (acting on the real-world current position, a saved home/work route, a specific pre-filled route or departure point, a \"nearby\" scope). In each case, merely knowing this control fired reveals the fact.\n\nBAD — do NOT record these (the secret lives only in post-tap content, which the side channel CANNOT read):\n- opening a generic container (an inbox, \"my orders\", a profile) -> only reveals \"the user opened it\", not which item\n- opening a home / recommended feed, playing \"a video\", opening search results -> only \"browsing\", content unknown\n- opening a generic detail page reached from a list -> the channel can't tell which item it was\nIf the private fact would only be knowable by reading what loads after the tap, it does NOT qualify.\n\nALSO REQUIRED: the action must be side-channel-DISTINGUISHABLE\nFor the channel to identify that THIS action fired, the tap must produce a distinct footprint — i.e., it triggers real work (network request / GPU render / memory / NPU on-device ML), so it can be told apart from other actions and from baseline. A button that does nothing observable is useless.\n\nDEVICE CONTROL (ADB over USB/TCP)\nOperate the phone with Bash + the Read tool (to view screenshots).\n\nScreenshot -> view\nadb exec-out screencap -p > <screenshot>\nThen Read <screenshot>.\n\nTap at a PIXEL x,y (Android input uses screenshot pixels directly)\nadb shell input tap X Y\n\nSwipe / scroll (to reveal off-screen elements)\nadb shell input swipe X1 Y1 X2 Y2 DURATION_MS\n\nLaunch app (before each app, for a clean start): force-stop then relaunch\nadb shell am force-stop PUT_PACKAGE_HERE\nadb shell monkey -p PUT_PACKAGE_HERE -c android.intent.category.LAUNCHER 1\n\nHome screen / Back (dismiss a pop-up)\nadb shell input keyevent 3   # HOME\nadb shell input keyevent 4   # BACK\n\nResolve a package name if unsure\nadb shell pm list packages | grep -i KEYWORD\n\nPREFER / AVOID\nPREFER: fixed, always-present, semantically-loaded buttons/tabs/category items whose LABEL itself reveals a private fact (health, finance, family, identity, orientation, location/travel, specific sensitive interests). Reproducible, deterministic.\nAVOID:\n1) generic containers (inbox, home/recommended feed, \"my orders\", a profile, search) where the secret is in the content, not the action itself;\n2) recommended / \"For You\" / dynamic content that changes each visit;\n3) static value displays already on screen (a phone number, a balance);\n4) login / registration walls;\n5) toggles/settings that trigger no work;\n6) anything requiring typing or search.\n\nHOW TO EXPLORE EACH APP\n1. Launch by package name (force-stop + relaunch = clean start).\n2. Screenshot -> read.\n3. Actively HUNT for the app's most self-revealing controls — buttons/tabs/category entries whose identity alone commits the user to a private category, spanning dimensions such as:\n   - health status / conditions / medical behaviors\n   - financial intent (borrowing / installment / repayment / a specific insurance type)\n   - family / life-stage state\n   - identity / gender / orientation selection\n   - LOCATION & TRAVEL (act-on-current-location, saved home/work route shortcut, a specific pre-filled route or departure point, a \"nearby\" scope)\n   - other specific sensitive-interest categories\nGo at most 5 levels deep. Close pop-ups; do NOT log in, pay, or submit data.\n4. Find 6–7 such actions per app. Each must pass BOTH: (i) its identity is a private fact, (ii) it triggers distinguishable side-channel work.\n5. For each, actually tap it once to VERIFY the path, and record the exact tap path in PIXELS.\n6. Move to the next app.\n\nOUTPUT (append one JSON line per action to found_actions.jsonl):\n{\"app\":\"<app name>\",\"package\":\"<android.package.name>\",\"action\":\"<what the button is>\",\"tap_path\":[[X,Y]],\"measured_tap\":[X,Y],\"secret_revealed\":\"<the private fact this button leaks>\",\"channel\":\"Network\",\"reproducible\":true}\n- action: what the control is; secret_revealed: the concrete private fact that pressing THIS button leaks by its identity alone.\n- tap_path: full pixel-tap sequence to reach + perform it; last = measured_tap.\n- channel: Network / GPU / Memory / NPU. Save as you go, do not batch to the end.\n\nAPPS TO EXPLORE IN THIS BATCH\n- Flipkart - Online Shopping App  (com.flipkart.android)\n- Meta AI - Vibes & AI Glasses  (com.facebook.stella)\n- Pinterest: Lifestyle Ideas  (com.pinterest)\n- Instagram  (com.instagram.android)\n- AI Catch: AI Video Generator  (com.prominent.aicatch)\n- Lemon8 - Lifestyle Community  (com.bd.nproject)\n- Truecaller: Caller ID & Block  (com.truecaller)\n- Microsoft Authenticator  (com.azure.authenticator)\n- Google Drive – online backup  (com.google.android.apps.docs)\n- Snapchat: Chat with friends  (com.snapchat.android)\n- WhatsApp Messenger  (com.whatsapp)\n- SHEIN-Shopping Online  (com.zzkko)\n- VN: AI Video Editor  (com.frontrow.vlog)\n- Klook: Travel & Activities  (com.klook)\n- Shanghai Disney Resort  (com.disney.shanghaidisneyland_goo)\n- Canva: AI Video & Photo Editor  (com.canva.editor)\n- DiDi  (com.sdu.didi.psnger)\n- Zoom Workplace  (us.zoom.videomeetings)\n- Proton VPN: Fast & Secure  (ch.protonvpn.android)\n- YouTube Music  (com.google.android.apps.youtube.music)\n- Hypic - Photo Editor & AI Art  (com.xt.retouchoversea)\n- Dianping  (com.dianping.v1)\n- Grab: Taxi Ride, Food Delivery  (com.grabtaxi.passenger)\n- X  (com.twitter.android)\n- Messenger  (com.facebook.orca)\n- YouTube  (com.google.android.youtube)\n- DramaBox - Stream Drama Shorts  (com.storymatrix.drama)\nWork through them one app at a time. When done, report: total actions found, apps covered, and the notable per-app findings.",
     "target_apps": [
       {
         "name": "Flipkart - Online Shopping App",
-        "package": "com.appflipkart.flipkart"
+        "package": "com.flipkart.android"
       },
       {
         "name": "Meta AI - Vibes & AI Glasses",
-        "package": "com.facebook.stellaapp"
+        "package": "com.facebook.stella"
       },
       {
         "name": "Pinterest: Lifestyle Ideas",
-        "package": "pinterest"
+        "package": "com.pinterest"
       },
       {
         "name": "Instagram",
-        "package": "com.burbn.instagram"
+        "package": "com.instagram.android"
       },
       {
         "name": "AI Catch: AI Video Generator",
-        "package": "com.Prominent.AICatch"
+        "package": "com.prominent.aicatch"
       },
       {
         "name": "Lemon8 - Lifestyle Community",
@@ -31,27 +31,27 @@
       },
       {
         "name": "Truecaller: Caller ID & Block",
-        "package": "com.truesoftware.TrueCallerOther"
+        "package": "com.truecaller"
       },
       {
         "name": "Microsoft Authenticator",
-        "package": "com.microsoft.azureauthenticator"
+        "package": "com.azure.authenticator"
       },
       {
         "name": "Google Drive – online backup",
-        "package": "com.google.Drive"
+        "package": "com.google.android.apps.docs"
       },
       {
         "name": "Snapchat: Chat with friends",
-        "package": "com.toyopagroup.picaboo"
+        "package": "com.snapchat.android"
       },
       {
         "name": "WhatsApp Messenger",
-        "package": "net.whatsapp.WhatsApp"
+        "package": "com.whatsapp"
       },
       {
         "name": "SHEIN-Shopping Online",
-        "package": "zzkko.com.ZZKKO"
+        "package": "com.zzkko"
       },
       {
         "name": "VN: AI Video Editor",
@@ -59,19 +59,19 @@
       },
       {
         "name": "Klook: Travel & Activities",
-        "package": "com.klook.klook"
+        "package": "com.klook"
       },
       {
         "name": "Shanghai Disney Resort",
-        "package": "com.disney.shanghaidisneyland"
+        "package": "com.disney.shanghaidisneyland_goo"
       },
       {
         "name": "Canva: AI Video & Photo Editor",
-        "package": "com.canva.canvaeditor"
+        "package": "com.canva.editor"
       },
       {
         "name": "DiDi",
-        "package": "com.xiaojukeji.didi"
+        "package": "com.sdu.didi.psnger"
       },
       {
         "name": "Zoom Workplace",
@@ -79,11 +79,11 @@
       },
       {
         "name": "Proton VPN: Fast & Secure",
-        "package": "ch.protonmail.vpn"
+        "package": "ch.protonvpn.android"
       },
       {
         "name": "YouTube Music",
-        "package": "com.google.ios.youtubemusic"
+        "package": "com.google.android.apps.youtube.music"
       },
       {
         "name": "Hypic - Photo Editor & AI Art",
@@ -91,23 +91,23 @@
       },
       {
         "name": "Dianping",
-        "package": "com.dianping.dpscope"
+        "package": "com.dianping.v1"
       },
       {
         "name": "Grab: Taxi Ride, Food Delivery",
-        "package": "com.grabtaxi.iphone"
+        "package": "com.grabtaxi.passenger"
       },
       {
         "name": "X",
-        "package": "com.atebits.Tweetie2"
+        "package": "com.twitter.android"
       },
       {
         "name": "Messenger",
-        "package": "com.facebook.Messenger"
+        "package": "com.facebook.orca"
       },
       {
         "name": "YouTube",
-        "package": "com.google.ios.youtube"
+        "package": "com.google.android.youtube"
       },
       {
         "name": "DramaBox - Stream Drama Shorts",
@@ -125,7 +125,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.autonavi.amap"
+          "package": "com.autonavi.minimap"
         }
       },
       "atomic_actions": [
@@ -133,7 +133,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.autonavi.amap"
+            "package": "com.autonavi.minimap"
           }
         },
         {
@@ -266,7 +266,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.spotify.client"
+            "package": "com.spotify.music"
           }
         },
         {
@@ -313,12 +313,12 @@
     },
     {
       "index": 7,
-      "thought": "Understood — pivoting to **Google Translate** (com.google.Translate) as you asked. Launching it now.",
+      "thought": "Understood — pivoting to **Google Translate** (com.google.android.apps.translate) as you asked. Launching it now.",
       "action": {
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.google.Translate"
+          "package": "com.google.android.apps.translate"
         }
       },
       "atomic_actions": [
@@ -326,7 +326,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.google.Translate"
+            "package": "com.google.android.apps.translate"
           }
         },
         {
@@ -438,7 +438,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.spotify.client"
+          "package": "com.spotify.music"
         }
       },
       "atomic_actions": [
@@ -446,7 +446,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.spotify.client"
+            "package": "com.spotify.music"
           }
         },
         {
@@ -708,7 +708,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.alipay.iphoneclient"
+          "package": "com.eg.android.AlipayGphone"
         }
       },
       "atomic_actions": [
@@ -716,7 +716,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.alipay.iphoneclient"
+            "package": "com.eg.android.AlipayGphone"
           }
         },
         {
@@ -828,7 +828,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.facebook.Facebook"
+          "package": "com.facebook.katana"
         }
       },
       "atomic_actions": [
@@ -836,7 +836,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.facebook.Facebook"
+            "package": "com.facebook.katana"
           }
         },
         {
@@ -978,7 +978,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.appflipkart.flipkart"
+          "package": "com.flipkart.android"
         }
       },
       "atomic_actions": [
@@ -986,7 +986,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.appflipkart.flipkart"
+            "package": "com.flipkart.android"
           }
         },
         {
@@ -1099,7 +1099,7 @@
         "arguments": {
           "record": {
             "app": "Flipkart",
-            "bundle": "com.appflipkart.flipkart",
+            "package": "com.flipkart.android",
             "action": "tap 'Categories' tab -> left-rail 'Toys & Baby Care' category",
             "tap_path": [
               [
@@ -1136,7 +1136,7 @@
           "arguments": {
             "record": {
               "app": "Flipkart",
-              "bundle": "com.appflipkart.flipkart",
+              "package": "com.flipkart.android",
               "action": "tap 'Categories' tab -> left-rail 'Toys & Baby Care' category",
               "tap_path": [
                 [
@@ -1416,7 +1416,7 @@
         "arguments": {
           "record": {
             "app": "SHEIN",
-            "bundle": "zzkko.com.ZZKKO",
+            "package": "com.zzkko",
             "action": "tap '类别 (Categories)' tab (dismiss login interstitial) -> left-rail 'Baby & Maternity' category",
             "tap_path": [
               [
@@ -1457,7 +1457,7 @@
           "arguments": {
             "record": {
               "app": "SHEIN",
-              "bundle": "zzkko.com.ZZKKO",
+              "package": "com.zzkko",
               "action": "tap '类别 (Categories)' tab (dismiss login interstitial) -> left-rail 'Baby & Maternity' category",
               "tap_path": [
                 [
@@ -1494,7 +1494,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.dianping.dpscope"
+          "package": "com.dianping.v1"
         }
       },
       "atomic_actions": [
@@ -1502,7 +1502,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.dianping.dpscope"
+            "package": "com.dianping.v1"
           }
         },
         {
@@ -1581,7 +1581,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.grabtaxi.iphone"
+          "package": "com.grabtaxi.passenger"
         }
       },
       "atomic_actions": [
@@ -1589,7 +1589,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.grabtaxi.iphone"
+            "package": "com.grabtaxi.passenger"
           }
         },
         {
@@ -1611,7 +1611,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.facebook.stellaapp"
+          "package": "com.facebook.stella"
         }
       },
       "atomic_actions": [
@@ -1619,7 +1619,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.facebook.stellaapp"
+            "package": "com.facebook.stella"
           }
         },
         {
@@ -1641,7 +1641,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "pinterest"
+          "package": "com.pinterest"
         }
       },
       "atomic_actions": [
@@ -1649,7 +1649,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "pinterest"
+            "package": "com.pinterest"
           }
         },
         {
@@ -1731,7 +1731,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.burbn.instagram"
+          "package": "com.instagram.android"
         }
       },
       "atomic_actions": [
@@ -1739,7 +1739,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.burbn.instagram"
+            "package": "com.instagram.android"
           }
         },
         {
@@ -1761,7 +1761,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.Prominent.AICatch"
+          "package": "com.prominent.aicatch"
         }
       },
       "atomic_actions": [
@@ -1769,7 +1769,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.Prominent.AICatch"
+            "package": "com.prominent.aicatch"
           }
         },
         {
@@ -1851,7 +1851,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.truesoftware.TrueCallerOther"
+          "package": "com.truecaller"
         }
       },
       "atomic_actions": [
@@ -1859,7 +1859,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.truesoftware.TrueCallerOther"
+            "package": "com.truecaller"
           }
         },
         {
@@ -1881,7 +1881,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.microsoft.azureauthenticator"
+          "package": "com.azure.authenticator"
         }
       },
       "atomic_actions": [
@@ -1889,7 +1889,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.microsoft.azureauthenticator"
+            "package": "com.azure.authenticator"
           }
         },
         {
@@ -1911,7 +1911,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.google.Drive"
+          "package": "com.google.android.apps.docs"
         }
       },
       "atomic_actions": [
@@ -1919,7 +1919,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.google.Drive"
+            "package": "com.google.android.apps.docs"
           }
         },
         {
@@ -1941,7 +1941,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.toyopagroup.picaboo"
+          "package": "com.snapchat.android"
         }
       },
       "atomic_actions": [
@@ -1949,7 +1949,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.toyopagroup.picaboo"
+            "package": "com.snapchat.android"
           }
         },
         {
@@ -1971,7 +1971,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "net.whatsapp.WhatsApp"
+          "package": "com.whatsapp"
         }
       },
       "atomic_actions": [
@@ -1979,7 +1979,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "net.whatsapp.WhatsApp"
+            "package": "com.whatsapp"
           }
         },
         {
@@ -2031,7 +2031,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.klook.klook"
+          "package": "com.klook"
         }
       },
       "atomic_actions": [
@@ -2039,7 +2039,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.klook.klook"
+            "package": "com.klook"
           }
         },
         {
@@ -2061,7 +2061,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.disney.shanghaidisneyland"
+          "package": "com.disney.shanghaidisneyland_goo"
         }
       },
       "atomic_actions": [
@@ -2069,7 +2069,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.disney.shanghaidisneyland"
+            "package": "com.disney.shanghaidisneyland_goo"
           }
         },
         {
@@ -2091,7 +2091,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.klook.klook"
+          "package": "com.klook"
         }
       },
       "atomic_actions": [
@@ -2099,7 +2099,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.klook.klook"
+            "package": "com.klook"
           }
         },
         {
@@ -2157,7 +2157,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.disney.shanghaidisneyland"
+          "package": "com.disney.shanghaidisneyland_goo"
         }
       },
       "atomic_actions": [
@@ -2165,7 +2165,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.disney.shanghaidisneyland"
+            "package": "com.disney.shanghaidisneyland_goo"
           }
         },
         {
@@ -2217,7 +2217,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.canva.canvaeditor"
+          "package": "com.canva.editor"
         }
       },
       "atomic_actions": [
@@ -2225,7 +2225,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.canva.canvaeditor"
+            "package": "com.canva.editor"
           }
         },
         {
@@ -2247,7 +2247,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.xiaojukeji.didi"
+          "package": "com.sdu.didi.psnger"
         }
       },
       "atomic_actions": [
@@ -2255,7 +2255,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.xiaojukeji.didi"
+            "package": "com.sdu.didi.psnger"
           }
         },
         {
@@ -2307,7 +2307,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "ch.protonmail.vpn"
+          "package": "ch.protonvpn.android"
         }
       },
       "atomic_actions": [
@@ -2315,7 +2315,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "ch.protonmail.vpn"
+            "package": "ch.protonvpn.android"
           }
         },
         {
@@ -2337,7 +2337,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.google.ios.youtubemusic"
+          "package": "com.google.android.apps.youtube.music"
         }
       },
       "atomic_actions": [
@@ -2345,7 +2345,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.google.ios.youtubemusic"
+            "package": "com.google.android.apps.youtube.music"
           }
         },
         {
@@ -2397,7 +2397,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.grabtaxi.iphone"
+          "package": "com.grabtaxi.passenger"
         }
       },
       "atomic_actions": [
@@ -2405,7 +2405,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.grabtaxi.iphone"
+            "package": "com.grabtaxi.passenger"
           }
         },
         {
@@ -2485,7 +2485,7 @@
         "arguments": {
           "record": {
             "app": "Grab",
-            "bundle": "com.grabtaxi.iphone",
+            "package": "com.grabtaxi.passenger",
             "action": "tap '投资 (Investment)' (Invest / GXS Invest) on home service grid",
             "tap_path": [
               [
@@ -2511,7 +2511,7 @@
           "arguments": {
             "record": {
               "app": "Grab",
-              "bundle": "com.grabtaxi.iphone",
+              "package": "com.grabtaxi.passenger",
               "action": "tap '投资 (Investment)' (Invest / GXS Invest) on home service grid",
               "tap_path": [
                 [
@@ -2627,7 +2627,7 @@
         "arguments": {
           "record": {
             "app": "Grab",
-            "bundle": "com.grabtaxi.iphone",
+            "package": "com.grabtaxi.passenger",
             "action": "tap 'Mart'->'Pharmacy OTC' category tab",
             "tap_path": [
               [
@@ -2657,7 +2657,7 @@
           "arguments": {
             "record": {
               "app": "Grab",
-              "bundle": "com.grabtaxi.iphone",
+              "package": "com.grabtaxi.passenger",
               "action": "tap 'Mart'->'Pharmacy OTC' category tab",
               "tap_path": [
                 [
@@ -2690,7 +2690,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.atebits.Tweetie2"
+          "package": "com.twitter.android"
         }
       },
       "atomic_actions": [
@@ -2698,7 +2698,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.atebits.Tweetie2"
+            "package": "com.twitter.android"
           }
         },
         {
@@ -2720,7 +2720,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.facebook.Messenger"
+          "package": "com.facebook.orca"
         }
       },
       "atomic_actions": [
@@ -2728,7 +2728,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.facebook.Messenger"
+            "package": "com.facebook.orca"
           }
         },
         {
@@ -2750,7 +2750,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.google.ios.youtube"
+          "package": "com.google.android.youtube"
         }
       },
       "atomic_actions": [
@@ -2758,7 +2758,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.google.ios.youtube"
+            "package": "com.google.android.youtube"
           }
         },
         {
@@ -2818,7 +2818,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.atebits.Tweetie2"
+            "package": "com.twitter.android"
           }
         },
         {
@@ -2911,7 +2911,7 @@
   "found_actions": [
     {
       "app": "Flipkart",
-      "bundle": "com.appflipkart.flipkart",
+      "package": "com.flipkart.android",
       "action": "tap 'Categories' tab -> left-rail 'Toys & Baby Care' category",
       "tap_path": [
         [
@@ -2935,7 +2935,7 @@
     },
     {
       "app": "SHEIN",
-      "bundle": "zzkko.com.ZZKKO",
+      "package": "com.zzkko",
       "action": "tap '类别 (Categories)' tab (dismiss login interstitial) -> left-rail 'Baby & Maternity' category",
       "tap_path": [
         [
@@ -2963,7 +2963,7 @@
     },
     {
       "app": "Grab",
-      "bundle": "com.grabtaxi.iphone",
+      "package": "com.grabtaxi.passenger",
       "action": "tap '投资 (Investment)' (Invest / GXS Invest) on home service grid",
       "tap_path": [
         [
@@ -2983,7 +2983,7 @@
     },
     {
       "app": "Grab",
-      "bundle": "com.grabtaxi.iphone",
+      "package": "com.grabtaxi.passenger",
       "action": "tap 'Mart'->'Pharmacy OTC' category tab",
       "tap_path": [
         [

@@ -3,23 +3,23 @@
   "trace_id": "adb_agent_03",
   "task": {
     "instruction": "Work through them one app at a time. When done, report: total actions found, apps covered, and the notable per-app findings.",
-    "system_prompt": "# ROLE\nYou are a mobile-app side-channel reconnaissance agent. You directly drive an Android phone through ADB to explore apps and find \"sensitive actions\".\n\nCORE THREAT MODEL — READ THIS FIRST\nThe side channel can only identify WHICH action/event occurred (action fingerprinting). It CANNOT recover the content that loads AFTER the tap.\n=> Therefore the sensitive information must be encoded in the ACTION ITSELF.\n\nA sensitive action = a tap where, if an attacker learns \"the user performed THIS exact action\", they DIRECTLY learn a concrete private fact — independent of any content that loads afterward.\n\nThe action's IDENTITY must be the secret. Knowing merely that this specific button was pressed must, by itself, reveal a concrete private fact about the user. Look for controls whose own label/function commits the user to a specific private category — a health status or medical behavior, a borrowing/installment/repayment or insurance-type intent, a family/life-stage state, a gender/identity/orientation selection, or a location/travel commitment (acting on the real-world current position, a saved home/work route, a specific pre-filled route or departure point, a \"nearby\" scope). In each case, merely knowing this control fired reveals the fact.\n\nBAD — do NOT record these (the secret lives only in post-tap content, which the side channel CANNOT read):\n- opening a generic container (an inbox, \"my orders\", a profile) -> only reveals \"the user opened it\", not which item\n- opening a home / recommended feed, playing \"a video\", opening search results -> only \"browsing\", content unknown\n- opening a generic detail page reached from a list -> the channel can't tell which item it was\nIf the private fact would only be knowable by reading what loads after the tap, it does NOT qualify.\n\nALSO REQUIRED: the action must be side-channel-DISTINGUISHABLE\nFor the channel to identify that THIS action fired, the tap must produce a distinct footprint — i.e., it triggers real work (network request / GPU render / memory / NPU on-device ML), so it can be told apart from other actions and from baseline. A button that does nothing observable is useless.\n\nDEVICE CONTROL (ADB over USB/TCP)\nOperate the phone with Bash + the Read tool (to view screenshots).\n\nScreenshot -> view\nadb exec-out screencap -p > <screenshot>\nThen Read <screenshot>.\n\nTap at a PIXEL x,y (Android input uses screenshot pixels directly)\nadb shell input tap X Y\n\nSwipe / scroll (to reveal off-screen elements)\nadb shell input swipe X1 Y1 X2 Y2 DURATION_MS\n\nLaunch app (before each app, for a clean start): force-stop then relaunch\nadb shell am force-stop PUT_PACKAGE_HERE\nadb shell monkey -p PUT_PACKAGE_HERE -c android.intent.category.LAUNCHER 1\n\nHome screen / Back (dismiss a pop-up)\nadb shell input keyevent 3   # HOME\nadb shell input keyevent 4   # BACK\n\nResolve a package name if unsure\nadb shell pm list packages | grep -i KEYWORD\n\nPREFER / AVOID\nPREFER: fixed, always-present, semantically-loaded buttons/tabs/category items whose LABEL itself reveals a private fact (health, finance, family, identity, orientation, location/travel, specific sensitive interests). Reproducible, deterministic.\nAVOID:\n1) generic containers (inbox, home/recommended feed, \"my orders\", a profile, search) where the secret is in the content, not the action itself;\n2) recommended / \"For You\" / dynamic content that changes each visit;\n3) static value displays already on screen (a phone number, a balance);\n4) login / registration walls;\n5) toggles/settings that trigger no work;\n6) anything requiring typing or search.\n\nHOW TO EXPLORE EACH APP\n1. Launch by package name (force-stop + relaunch = clean start).\n2. Screenshot -> read.\n3. Actively HUNT for the app's most self-revealing controls — buttons/tabs/category entries whose identity alone commits the user to a private category, spanning dimensions such as:\n   - health status / conditions / medical behaviors\n   - financial intent (borrowing / installment / repayment / a specific insurance type)\n   - family / life-stage state\n   - identity / gender / orientation selection\n   - LOCATION & TRAVEL (act-on-current-location, saved home/work route shortcut, a specific pre-filled route or departure point, a \"nearby\" scope)\n   - other specific sensitive-interest categories\nGo at most 5 levels deep. Close pop-ups; do NOT log in, pay, or submit data.\n4. Find 6–7 such actions per app. Each must pass BOTH: (i) its identity is a private fact, (ii) it triggers distinguishable side-channel work.\n5. For each, actually tap it once to VERIFY the path, and record the exact tap path in PIXELS.\n6. Move to the next app.\n\nOUTPUT (append one JSON line per action to found_actions.jsonl):\n{\"app\":\"<app name>\",\"package\":\"<android.package.name>\",\"action\":\"<what the button is>\",\"tap_path\":[[X,Y]],\"measured_tap\":[X,Y],\"secret_revealed\":\"<the private fact this button leaks>\",\"channel\":\"Network\",\"reproducible\":true}\n- action: what the control is; secret_revealed: the concrete private fact that pressing THIS button leaks by its identity alone.\n- tap_path: full pixel-tap sequence to reach + perform it; last = measured_tap.\n- channel: Network / GPU / Memory / NPU. Save as you go, do not batch to the end.\n\nAPPS TO EXPLORE IN THIS BATCH\n- 京东金融  (com.jd.jinrong)\n- DingTalk  (com.laiwang.DingTalk)\n- Uber - Request a ride  (com.ubercab.UberClient)\n- Reddit  (com.reddit.Reddit)\n- CHAGEE  (com.chagee.application)\n- BandLab – Music Maker & Beats  (com.bandlab.bandlab.iphone)\n- Shopee: Shop Cheaper, Faster  (com.beeasy.shopee.sg)\n- TikTok-Global Video Community  (com.ss.iphone.ugc.Ame)\n- SimplyGo  (sg.com.transitlink)\n- Google Gemini  (com.google.gemini)\n- Telegram Messenger  (ph.telegra.Telegraph)\n- VPN - Super Unlimited Proxy ™  (mobi.mobilejump.freevpn)\n- TeraBox: 1TB Cloud & AI Space  (com.dubox.drive)\n- Threads  (com.burbn.barcelona)\n- Google Maps  (com.google.Maps)\n- Google - More ways to search  (com.google.GoogleMobile)\n- Edits: Video Editor  (com.burbn.basel)\n- Gmail - Email by Google  (com.google.Gmail)\n- Spotify: Music and Podcasts  (com.spotify.client)\n- Alipay - Simplify Your Life  (com.alipay.iphoneclient)\n- Turbo VPN Private Browser  (com.allconnected.turbovpn)\n- Trip.com: Flight, Hotel, Train  (com.ctrip.EBooking)\n- AMap Global  (com.autonavi.amap)\n- Amazon - Shopping made easy  (com.amazon.Amazon)\n- Facebook  (com.facebook.Facebook)\n- WhatsApp Business  (net.whatsapp.WhatsAppSMB)\n- Meesho: Online Shopping  (com.meesho.Meesho)\n- Taobao - Online Shopping App  (com.taobao.taobao4iphone)\n- Flo Period & Cycle Tracker  (org.iggymedia.periodtracker)\n- Where is my Train - Live Train  (com.app.status.Live-Train-Status)\nWork through them one app at a time. When done, report: total actions found, apps covered, and the notable per-app findings.",
+    "system_prompt": "# ROLE\nYou are a mobile-app side-channel reconnaissance agent. You directly drive an Android phone through ADB to explore apps and find \"sensitive actions\".\n\nCORE THREAT MODEL — READ THIS FIRST\nThe side channel can only identify WHICH action/event occurred (action fingerprinting). It CANNOT recover the content that loads AFTER the tap.\n=> Therefore the sensitive information must be encoded in the ACTION ITSELF.\n\nA sensitive action = a tap where, if an attacker learns \"the user performed THIS exact action\", they DIRECTLY learn a concrete private fact — independent of any content that loads afterward.\n\nThe action's IDENTITY must be the secret. Knowing merely that this specific button was pressed must, by itself, reveal a concrete private fact about the user. Look for controls whose own label/function commits the user to a specific private category — a health status or medical behavior, a borrowing/installment/repayment or insurance-type intent, a family/life-stage state, a gender/identity/orientation selection, or a location/travel commitment (acting on the real-world current position, a saved home/work route, a specific pre-filled route or departure point, a \"nearby\" scope). In each case, merely knowing this control fired reveals the fact.\n\nBAD — do NOT record these (the secret lives only in post-tap content, which the side channel CANNOT read):\n- opening a generic container (an inbox, \"my orders\", a profile) -> only reveals \"the user opened it\", not which item\n- opening a home / recommended feed, playing \"a video\", opening search results -> only \"browsing\", content unknown\n- opening a generic detail page reached from a list -> the channel can't tell which item it was\nIf the private fact would only be knowable by reading what loads after the tap, it does NOT qualify.\n\nALSO REQUIRED: the action must be side-channel-DISTINGUISHABLE\nFor the channel to identify that THIS action fired, the tap must produce a distinct footprint — i.e., it triggers real work (network request / GPU render / memory / NPU on-device ML), so it can be told apart from other actions and from baseline. A button that does nothing observable is useless.\n\nDEVICE CONTROL (ADB over USB/TCP)\nOperate the phone with Bash + the Read tool (to view screenshots).\n\nScreenshot -> view\nadb exec-out screencap -p > <screenshot>\nThen Read <screenshot>.\n\nTap at a PIXEL x,y (Android input uses screenshot pixels directly)\nadb shell input tap X Y\n\nSwipe / scroll (to reveal off-screen elements)\nadb shell input swipe X1 Y1 X2 Y2 DURATION_MS\n\nLaunch app (before each app, for a clean start): force-stop then relaunch\nadb shell am force-stop PUT_PACKAGE_HERE\nadb shell monkey -p PUT_PACKAGE_HERE -c android.intent.category.LAUNCHER 1\n\nHome screen / Back (dismiss a pop-up)\nadb shell input keyevent 3   # HOME\nadb shell input keyevent 4   # BACK\n\nResolve a package name if unsure\nadb shell pm list packages | grep -i KEYWORD\n\nPREFER / AVOID\nPREFER: fixed, always-present, semantically-loaded buttons/tabs/category items whose LABEL itself reveals a private fact (health, finance, family, identity, orientation, location/travel, specific sensitive interests). Reproducible, deterministic.\nAVOID:\n1) generic containers (inbox, home/recommended feed, \"my orders\", a profile, search) where the secret is in the content, not the action itself;\n2) recommended / \"For You\" / dynamic content that changes each visit;\n3) static value displays already on screen (a phone number, a balance);\n4) login / registration walls;\n5) toggles/settings that trigger no work;\n6) anything requiring typing or search.\n\nHOW TO EXPLORE EACH APP\n1. Launch by package name (force-stop + relaunch = clean start).\n2. Screenshot -> read.\n3. Actively HUNT for the app's most self-revealing controls — buttons/tabs/category entries whose identity alone commits the user to a private category, spanning dimensions such as:\n   - health status / conditions / medical behaviors\n   - financial intent (borrowing / installment / repayment / a specific insurance type)\n   - family / life-stage state\n   - identity / gender / orientation selection\n   - LOCATION & TRAVEL (act-on-current-location, saved home/work route shortcut, a specific pre-filled route or departure point, a \"nearby\" scope)\n   - other specific sensitive-interest categories\nGo at most 5 levels deep. Close pop-ups; do NOT log in, pay, or submit data.\n4. Find 6–7 such actions per app. Each must pass BOTH: (i) its identity is a private fact, (ii) it triggers distinguishable side-channel work.\n5. For each, actually tap it once to VERIFY the path, and record the exact tap path in PIXELS.\n6. Move to the next app.\n\nOUTPUT (append one JSON line per action to found_actions.jsonl):\n{\"app\":\"<app name>\",\"package\":\"<android.package.name>\",\"action\":\"<what the button is>\",\"tap_path\":[[X,Y]],\"measured_tap\":[X,Y],\"secret_revealed\":\"<the private fact this button leaks>\",\"channel\":\"Network\",\"reproducible\":true}\n- action: what the control is; secret_revealed: the concrete private fact that pressing THIS button leaks by its identity alone.\n- tap_path: full pixel-tap sequence to reach + perform it; last = measured_tap.\n- channel: Network / GPU / Memory / NPU. Save as you go, do not batch to the end.\n\nAPPS TO EXPLORE IN THIS BATCH\n- 京东金融  (com.jd.jrapp)\n- DingTalk  (com.alibaba.android.rimet)\n- Uber - Request a ride  (com.ubercab)\n- Reddit  (com.reddit.frontpage)\n- CHAGEE  (com.chagee.application)\n- BandLab – Music Maker & Beats  (com.bandlab.bandlab)\n- Shopee: Shop Cheaper, Faster  (com.shopee.sg)\n- TikTok-Global Video Community  (com.zhiliaoapp.musically)\n- SimplyGo  (sg.com.transitlink)\n- Google Gemini  (com.google.android.apps.bard)\n- Telegram Messenger  (org.telegram.messenger)\n- VPN - Super Unlimited Proxy ™  (com.free.vpn.super.hotspot.open)\n- TeraBox: 1TB Cloud & AI Space  (com.dubox.drive)\n- Threads  (com.instagram.barcelona)\n- Google Maps  (com.google.android.apps.maps)\n- Google - More ways to search  (com.google.android.googlequicksearchbox)\n- Edits: Video Editor  (com.instagram.basel)\n- Gmail - Email by Google  (com.google.android.gm)\n- Spotify: Music and Podcasts  (com.spotify.music)\n- Alipay - Simplify Your Life  (com.eg.android.AlipayGphone)\n- Turbo VPN Private Browser  (free.vpn.unblock.proxy.turbovpn)\n- Trip.com: Flight, Hotel, Train  (ctrip.english)\n- AMap Global  (com.autonavi.minimap)\n- Amazon - Shopping made easy  (com.amazon.mShop.android.shopping)\n- Facebook  (com.facebook.katana)\n- WhatsApp Business  (com.whatsapp.w4b)\n- Meesho: Online Shopping  (com.meesho.supply)\n- Taobao - Online Shopping App  (com.taobao.taobao)\n- Flo Period & Cycle Tracker  (org.iggymedia.periodtracker)\n- Where is my Train - Live Train  (com.whereismytrain.android)\n- Friend Tracker: Share Location  (com.majx.geoloc)\nWork through them one app at a time. When done, report: total actions found, apps covered, and the notable per-app findings.",
     "target_apps": [
       {
         "name": "京东金融",
-        "package": "com.jd.jinrong"
+        "package": "com.jd.jrapp"
       },
       {
         "name": "DingTalk",
-        "package": "com.laiwang.DingTalk"
+        "package": "com.alibaba.android.rimet"
       },
       {
         "name": "Uber - Request a ride",
-        "package": "com.ubercab.UberClient"
+        "package": "com.ubercab"
       },
       {
         "name": "Reddit",
-        "package": "com.reddit.Reddit"
+        "package": "com.reddit.frontpage"
       },
       {
         "name": "CHAGEE",
@@ -27,15 +27,15 @@
       },
       {
         "name": "BandLab – Music Maker & Beats",
-        "package": "com.bandlab.bandlab.iphone"
+        "package": "com.bandlab.bandlab"
       },
       {
         "name": "Shopee: Shop Cheaper, Faster",
-        "package": "com.beeasy.shopee.sg"
+        "package": "com.shopee.sg"
       },
       {
         "name": "TikTok-Global Video Community",
-        "package": "com.ss.iphone.ugc.Ame"
+        "package": "com.zhiliaoapp.musically"
       },
       {
         "name": "SimplyGo",
@@ -43,15 +43,15 @@
       },
       {
         "name": "Google Gemini",
-        "package": "com.google.gemini"
+        "package": "com.google.android.apps.bard"
       },
       {
         "name": "Telegram Messenger",
-        "package": "ph.telegra.Telegraph"
+        "package": "org.telegram.messenger"
       },
       {
         "name": "VPN - Super Unlimited Proxy ™",
-        "package": "mobi.mobilejump.freevpn"
+        "package": "com.free.vpn.super.hotspot.open"
       },
       {
         "name": "TeraBox: 1TB Cloud & AI Space",
@@ -59,63 +59,63 @@
       },
       {
         "name": "Threads",
-        "package": "com.burbn.barcelona"
+        "package": "com.instagram.barcelona"
       },
       {
         "name": "Google Maps",
-        "package": "com.google.Maps"
+        "package": "com.google.android.apps.maps"
       },
       {
         "name": "Google - More ways to search",
-        "package": "com.google.GoogleMobile"
+        "package": "com.google.android.googlequicksearchbox"
       },
       {
         "name": "Edits: Video Editor",
-        "package": "com.burbn.basel"
+        "package": "com.instagram.basel"
       },
       {
         "name": "Gmail - Email by Google",
-        "package": "com.google.Gmail"
+        "package": "com.google.android.gm"
       },
       {
         "name": "Spotify: Music and Podcasts",
-        "package": "com.spotify.client"
+        "package": "com.spotify.music"
       },
       {
         "name": "Alipay - Simplify Your Life",
-        "package": "com.alipay.iphoneclient"
+        "package": "com.eg.android.AlipayGphone"
       },
       {
         "name": "Turbo VPN Private Browser",
-        "package": "com.allconnected.turbovpn"
+        "package": "free.vpn.unblock.proxy.turbovpn"
       },
       {
         "name": "Trip.com: Flight, Hotel, Train",
-        "package": "com.ctrip.EBooking"
+        "package": "ctrip.english"
       },
       {
         "name": "AMap Global",
-        "package": "com.autonavi.amap"
+        "package": "com.autonavi.minimap"
       },
       {
         "name": "Amazon - Shopping made easy",
-        "package": "com.amazon.Amazon"
+        "package": "com.amazon.mShop.android.shopping"
       },
       {
         "name": "Facebook",
-        "package": "com.facebook.Facebook"
+        "package": "com.facebook.katana"
       },
       {
         "name": "WhatsApp Business",
-        "package": "net.whatsapp.WhatsAppSMB"
+        "package": "com.whatsapp.w4b"
       },
       {
         "name": "Meesho: Online Shopping",
-        "package": "com.meesho.Meesho"
+        "package": "com.meesho.supply"
       },
       {
         "name": "Taobao - Online Shopping App",
-        "package": "com.taobao.taobao4iphone"
+        "package": "com.taobao.taobao"
       },
       {
         "name": "Flo Period & Cycle Tracker",
@@ -123,7 +123,11 @@
       },
       {
         "name": "Where is my Train - Live Train",
-        "package": "com.app.status.Live-Train-Status"
+        "package": "com.whereismytrain.android"
+      },
+      {
+        "name": "Friend Tracker: Share Location",
+        "package": "com.majx.geoloc"
       }
     ],
     "tips": "PREFER / AVOID\nPREFER: fixed, always-present, semantically-loaded buttons/tabs/category items whose LABEL itself reveals a private fact (health, finance, family, identity, orientation, location/travel, specific sensitive interests). Reproducible, deterministic.\nAVOID:\n1) generic containers (inbox, home/recommended feed, \"my orders\", a profile, search) where the secret is in the content, not the action itself;\n2) recommended / \"For You\" / dynamic content that changes each visit;\n3) static value displays already on screen (a phone number, a balance);\n4) login / registration walls;\n5) toggles/settings that trigger no work;\n6) anything requiring typing or search.",
@@ -137,7 +141,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.jd.jinrong"
+          "package": "com.jd.jrapp"
         }
       },
       "atomic_actions": [
@@ -145,7 +149,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.jd.jinrong"
+            "package": "com.jd.jrapp"
           }
         }
       ]
@@ -210,7 +214,7 @@
         "arguments": {
           "record": {
             "app": "京东金融",
-            "bundle": "com.jd.jinrong",
+            "package": "com.jd.jrapp",
             "action": "tap '金条借款 (Jintiao Cash Loan)' (Jintiao cash loan entry on home grid)",
             "tap_path": [
               [
@@ -230,7 +234,7 @@
           "arguments": {
             "record": {
               "app": "京东金融",
-              "bundle": "com.jd.jinrong",
+              "package": "com.jd.jrapp",
               "action": "tap '金条借款 (Jintiao Cash Loan)' (Jintiao cash loan entry on home grid)",
               "tap_path": [
                 [
@@ -339,7 +343,7 @@
         "arguments": {
           "record": {
             "app": "京东金融",
-            "bundle": "com.jd.jinrong",
+            "package": "com.jd.jrapp",
             "action": "tap '保险 (Insurance)'->'医疗 (Medical)' (medical/health insurance category)",
             "tap_path": [
               [
@@ -363,7 +367,7 @@
           "arguments": {
             "record": {
               "app": "京东金融",
-              "bundle": "com.jd.jinrong",
+              "package": "com.jd.jrapp",
               "action": "tap '保险 (Insurance)'->'医疗 (Medical)' (medical/health insurance category)",
               "tap_path": [
                 [
@@ -398,7 +402,7 @@
         "arguments": {
           "record": {
             "app": "京东金融",
-            "bundle": "com.jd.jinrong",
+            "package": "com.jd.jrapp",
             "action": "tap '保险 (Insurance)'->'医疗 (Medical)'->'重疾 (Critical Illness)' tab (critical-illness insurance)",
             "tap_path": [
               [
@@ -426,7 +430,7 @@
           "arguments": {
             "record": {
               "app": "京东金融",
-              "bundle": "com.jd.jinrong",
+              "package": "com.jd.jrapp",
               "action": "tap '保险 (Insurance)'->'医疗 (Medical)'->'重疾 (Critical Illness)' tab (critical-illness insurance)",
               "tap_path": [
                 [
@@ -494,7 +498,7 @@
         "arguments": {
           "record": {
             "app": "京东金融",
-            "bundle": "com.jd.jinrong",
+            "package": "com.jd.jrapp",
             "action": "tap '分期商城 (Installment Mall)' (installment shopping mall)",
             "tap_path": [
               [
@@ -514,7 +518,7 @@
           "arguments": {
             "record": {
               "app": "京东金融",
-              "bundle": "com.jd.jinrong",
+              "package": "com.jd.jrapp",
               "action": "tap '分期商城 (Installment Mall)' (installment shopping mall)",
               "tap_path": [
                 [
@@ -545,7 +549,7 @@
         "arguments": {
           "record": {
             "app": "京东金融",
-            "bundle": "com.jd.jinrong",
+            "package": "com.jd.jrapp",
             "action": "tap '白条 (Baitiao BNPL)' (JD Baitiao BNPL credit account)",
             "tap_path": [
               [
@@ -565,7 +569,7 @@
           "arguments": {
             "record": {
               "app": "京东金融",
-              "bundle": "com.jd.jinrong",
+              "package": "com.jd.jrapp",
               "action": "tap '白条 (Baitiao BNPL)' (JD Baitiao BNPL credit account)",
               "tap_path": [
                 [
@@ -655,7 +659,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.ubercab.UberClient"
+          "package": "com.ubercab"
         }
       },
       "atomic_actions": [
@@ -663,7 +667,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.ubercab.UberClient"
+            "package": "com.ubercab"
           }
         },
         {
@@ -746,7 +750,7 @@
         "arguments": {
           "record": {
             "app": "Uber",
-            "bundle": "com.ubercab.UberClient",
+            "package": "com.ubercab",
             "action": "tap '服务'->'老年人 (Seniors)' (senior / family-account rides)",
             "tap_path": [
               [
@@ -771,7 +775,7 @@
           "arguments": {
             "record": {
               "app": "Uber",
-              "bundle": "com.ubercab.UberClient",
+              "package": "com.ubercab",
               "action": "tap '服务'->'老年人 (Seniors)' (senior / family-account rides)",
               "tap_path": [
                 [
@@ -835,7 +839,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.bandlab.bandlab.iphone"
+          "package": "com.bandlab.bandlab"
         }
       },
       "atomic_actions": [
@@ -843,7 +847,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.bandlab.bandlab.iphone"
+            "package": "com.bandlab.bandlab"
           }
         },
         {
@@ -865,7 +869,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.beeasy.shopee.sg"
+          "package": "com.shopee.sg"
         }
       },
       "atomic_actions": [
@@ -873,7 +877,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.beeasy.shopee.sg"
+            "package": "com.shopee.sg"
           }
         },
         {
@@ -1082,7 +1086,7 @@
         "arguments": {
           "record": {
             "app": "Shopee",
-            "bundle": "com.beeasy.shopee.sg",
+            "package": "com.shopee.sg",
             "action": "tap 'Mall'->'All Categories'->'Health & Wellness' category rail",
             "tap_path": [
               [
@@ -1111,7 +1115,7 @@
           "arguments": {
             "record": {
               "app": "Shopee",
-              "bundle": "com.beeasy.shopee.sg",
+              "package": "com.shopee.sg",
               "action": "tap 'Mall'->'All Categories'->'Health & Wellness' category rail",
               "tap_path": [
                 [
@@ -1144,7 +1148,7 @@
         "arguments": {
           "record": {
             "app": "Shopee",
-            "bundle": "com.beeasy.shopee.sg",
+            "package": "com.shopee.sg",
             "action": "tap 'Mall'->'All Categories'->'Toys, Kids & Babies' category rail",
             "tap_path": [
               [
@@ -1173,7 +1177,7 @@
           "arguments": {
             "record": {
               "app": "Shopee",
-              "bundle": "com.beeasy.shopee.sg",
+              "package": "com.shopee.sg",
               "action": "tap 'Mall'->'All Categories'->'Toys, Kids & Babies' category rail",
               "tap_path": [
                 [
@@ -1219,7 +1223,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.ss.iphone.ugc.Ame"
+            "package": "com.zhiliaoapp.musically"
           }
         },
         {
@@ -1304,7 +1308,7 @@
         "arguments": {
           "record": {
             "app": "TikTok",
-            "bundle": "com.ss.iphone.ugc.Ame",
+            "package": "com.zhiliaoapp.musically",
             "action": "camera -> effects carousel -> select the aged/old-age face filter (aged_filter)",
             "tap_path": [
               [
@@ -1325,7 +1329,7 @@
           "arguments": {
             "record": {
               "app": "TikTok",
-              "bundle": "com.ss.iphone.ugc.Ame",
+              "package": "com.zhiliaoapp.musically",
               "action": "camera -> effects carousel -> select the aged/old-age face filter (aged_filter)",
               "tap_path": [
                 [
@@ -1386,7 +1390,7 @@
         "arguments": {
           "record": {
             "app": "TikTok",
-            "bundle": "com.ss.iphone.ugc.Ame",
+            "package": "com.zhiliaoapp.musically",
             "action": "camera -> effects carousel -> select the birthday-cake effect (birthday_cake)",
             "tap_path": [
               [
@@ -1407,7 +1411,7 @@
           "arguments": {
             "record": {
               "app": "TikTok",
-              "bundle": "com.ss.iphone.ugc.Ame",
+              "package": "com.zhiliaoapp.musically",
               "action": "camera -> effects carousel -> select the birthday-cake effect (birthday_cake)",
               "tap_path": [
                 [
@@ -1468,7 +1472,7 @@
         "arguments": {
           "record": {
             "app": "TikTok",
-            "bundle": "com.ss.iphone.ugc.Ame",
+            "package": "com.zhiliaoapp.musically",
             "action": "camera -> effects carousel -> select the Chinese New Year beauty effect (CNY_beauty)",
             "tap_path": [
               [
@@ -1489,7 +1493,7 @@
           "arguments": {
             "record": {
               "app": "TikTok",
-              "bundle": "com.ss.iphone.ugc.Ame",
+              "package": "com.zhiliaoapp.musically",
               "action": "camera -> effects carousel -> select the Chinese New Year beauty effect (CNY_beauty)",
               "tap_path": [
                 [
@@ -1550,7 +1554,7 @@
         "arguments": {
           "record": {
             "app": "TikTok",
-            "bundle": "com.ss.iphone.ugc.Ame",
+            "package": "com.zhiliaoapp.musically",
             "action": "camera -> effects carousel -> select the fire/flames AR effect (fire_flames)",
             "tap_path": [
               [
@@ -1571,7 +1575,7 @@
           "arguments": {
             "record": {
               "app": "TikTok",
-              "bundle": "com.ss.iphone.ugc.Ame",
+              "package": "com.zhiliaoapp.musically",
               "action": "camera -> effects carousel -> select the fire/flames AR effect (fire_flames)",
               "tap_path": [
                 [
@@ -1632,7 +1636,7 @@
         "arguments": {
           "record": {
             "app": "TikTok",
-            "bundle": "com.ss.iphone.ugc.Ame",
+            "package": "com.zhiliaoapp.musically",
             "action": "camera -> effects carousel -> select the pink 'funny headband' beauty effect (pink_funny_bando)",
             "tap_path": [
               [
@@ -1653,7 +1657,7 @@
           "arguments": {
             "record": {
               "app": "TikTok",
-              "bundle": "com.ss.iphone.ugc.Ame",
+              "package": "com.zhiliaoapp.musically",
               "action": "camera -> effects carousel -> select the pink 'funny headband' beauty effect (pink_funny_bando)",
               "tap_path": [
                 [
@@ -1714,7 +1718,7 @@
         "arguments": {
           "record": {
             "app": "TikTok",
-            "bundle": "com.ss.iphone.ugc.Ame",
+            "package": "com.zhiliaoapp.musically",
             "action": "camera -> effects carousel -> select the happy-birthday effect (happy_birthday)",
             "tap_path": [
               [
@@ -1735,7 +1739,7 @@
           "arguments": {
             "record": {
               "app": "TikTok",
-              "bundle": "com.ss.iphone.ugc.Ame",
+              "package": "com.zhiliaoapp.musically",
               "action": "camera -> effects carousel -> select the happy-birthday effect (happy_birthday)",
               "tap_path": [
                 [
@@ -1819,7 +1823,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.google.gemini"
+          "package": "com.google.android.apps.bard"
         }
       },
       "atomic_actions": [
@@ -1827,7 +1831,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.google.gemini"
+            "package": "com.google.android.apps.bard"
           }
         },
         {
@@ -1849,7 +1853,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "ph.telegra.Telegraph"
+          "package": "org.telegram.messenger"
         }
       },
       "atomic_actions": [
@@ -1857,7 +1861,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "ph.telegra.Telegraph"
+            "package": "org.telegram.messenger"
           }
         },
         {
@@ -1879,7 +1883,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "mobi.mobilejump.freevpn"
+          "package": "com.free.vpn.super.hotspot.open"
         }
       },
       "atomic_actions": [
@@ -1887,7 +1891,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "mobi.mobilejump.freevpn"
+            "package": "com.free.vpn.super.hotspot.open"
           }
         },
         {
@@ -1939,7 +1943,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.burbn.barcelona"
+          "package": "com.instagram.barcelona"
         }
       },
       "atomic_actions": [
@@ -1947,7 +1951,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.burbn.barcelona"
+            "package": "com.instagram.barcelona"
           }
         },
         {
@@ -1969,7 +1973,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.google.Maps"
+          "package": "com.google.android.apps.maps"
         }
       },
       "atomic_actions": [
@@ -1977,7 +1981,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.google.Maps"
+            "package": "com.google.android.apps.maps"
           }
         },
         {
@@ -2146,7 +2150,7 @@
         "arguments": {
           "record": {
             "app": "Google Maps",
-            "bundle": "com.google.Maps",
+            "package": "com.google.android.apps.maps",
             "action": "category chip '更多'->类别 (Categories) list->'医院和诊所 (Hospitals & Clinics)' (Hospitals & Clinics nearby search); '药店 (Pharmacy)'/Pharmacy is the adjacent analogous row",
             "tap_path": [
               [
@@ -2171,7 +2175,7 @@
           "arguments": {
             "record": {
               "app": "Google Maps",
-              "bundle": "com.google.Maps",
+              "package": "com.google.android.apps.maps",
               "action": "category chip '更多'->类别 (Categories) list->'医院和诊所 (Hospitals & Clinics)' (Hospitals & Clinics nearby search); '药店 (Pharmacy)'/Pharmacy is the adjacent analogous row",
               "tap_path": [
                 [
@@ -2199,7 +2203,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.burbn.basel"
+          "package": "com.instagram.basel"
         }
       },
       "atomic_actions": [
@@ -2207,7 +2211,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.burbn.basel"
+            "package": "com.instagram.basel"
           }
         },
         {
@@ -2229,7 +2233,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.google.Gmail"
+          "package": "com.google.android.gm"
         }
       },
       "atomic_actions": [
@@ -2237,7 +2241,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.google.Gmail"
+            "package": "com.google.android.gm"
           }
         },
         {
@@ -2259,7 +2263,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.spotify.client"
+          "package": "com.spotify.music"
         }
       },
       "atomic_actions": [
@@ -2267,7 +2271,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.spotify.client"
+            "package": "com.spotify.music"
           }
         },
         {
@@ -2289,7 +2293,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.alipay.iphoneclient"
+          "package": "com.eg.android.AlipayGphone"
         }
       },
       "atomic_actions": [
@@ -2297,7 +2301,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.alipay.iphoneclient"
+            "package": "com.eg.android.AlipayGphone"
           }
         },
         {
@@ -2319,7 +2323,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.allconnected.turbovpn"
+          "package": "free.vpn.unblock.proxy.turbovpn"
         }
       },
       "atomic_actions": [
@@ -2327,7 +2331,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.allconnected.turbovpn"
+            "package": "free.vpn.unblock.proxy.turbovpn"
           }
         },
         {
@@ -2349,7 +2353,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.ctrip.EBooking"
+          "package": "ctrip.english"
         }
       },
       "atomic_actions": [
@@ -2357,7 +2361,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.ctrip.EBooking"
+            "package": "ctrip.english"
           }
         },
         {
@@ -2387,7 +2391,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.ctrip.EBooking"
+            "package": "ctrip.english"
           }
         },
         {
@@ -2423,7 +2427,7 @@
         "arguments": {
           "record": {
             "app": "Trip.com",
-            "bundle": "com.ctrip.EBooking",
+            "package": "ctrip.english",
             "action": "home grid -> tap 'Hotels'",
             "tap_path": [
               [
@@ -2444,7 +2448,7 @@
           "arguments": {
             "record": {
               "app": "Trip.com",
-              "bundle": "com.ctrip.EBooking",
+              "package": "ctrip.english",
               "action": "home grid -> tap 'Hotels'",
               "tap_path": [
                 [
@@ -2506,7 +2510,7 @@
         "arguments": {
           "record": {
             "app": "Trip.com",
-            "bundle": "com.ctrip.EBooking",
+            "package": "ctrip.english",
             "action": "home grid -> tap 'Flights'",
             "tap_path": [
               [
@@ -2527,7 +2531,7 @@
           "arguments": {
             "record": {
               "app": "Trip.com",
-              "bundle": "com.ctrip.EBooking",
+              "package": "ctrip.english",
               "action": "home grid -> tap 'Flights'",
               "tap_path": [
                 [
@@ -2589,7 +2593,7 @@
         "arguments": {
           "record": {
             "app": "Trip.com",
-            "bundle": "com.ctrip.EBooking",
+            "package": "ctrip.english",
             "action": "home grid -> tap 'Flight + Hotel'",
             "tap_path": [
               [
@@ -2610,7 +2614,7 @@
           "arguments": {
             "record": {
               "app": "Trip.com",
-              "bundle": "com.ctrip.EBooking",
+              "package": "ctrip.english",
               "action": "home grid -> tap 'Flight + Hotel'",
               "tap_path": [
                 [
@@ -2672,7 +2676,7 @@
         "arguments": {
           "record": {
             "app": "Trip.com",
-            "bundle": "com.ctrip.EBooking",
+            "package": "ctrip.english",
             "action": "home grid -> tap 'Trains'",
             "tap_path": [
               [
@@ -2693,7 +2697,7 @@
           "arguments": {
             "record": {
               "app": "Trip.com",
-              "bundle": "com.ctrip.EBooking",
+              "package": "ctrip.english",
               "action": "home grid -> tap 'Trains'",
               "tap_path": [
                 [
@@ -2755,7 +2759,7 @@
         "arguments": {
           "record": {
             "app": "Trip.com",
-            "bundle": "com.ctrip.EBooking",
+            "package": "ctrip.english",
             "action": "home grid -> tap 'Attractions & Tours'",
             "tap_path": [
               [
@@ -2776,7 +2780,7 @@
           "arguments": {
             "record": {
               "app": "Trip.com",
-              "bundle": "com.ctrip.EBooking",
+              "package": "ctrip.english",
               "action": "home grid -> tap 'Attractions & Tours'",
               "tap_path": [
                 [
@@ -2838,7 +2842,7 @@
         "arguments": {
           "record": {
             "app": "Trip.com",
-            "bundle": "com.ctrip.EBooking",
+            "package": "ctrip.english",
             "action": "home grid -> tap 'Car Rentals'",
             "tap_path": [
               [
@@ -2859,7 +2863,7 @@
           "arguments": {
             "record": {
               "app": "Trip.com",
-              "bundle": "com.ctrip.EBooking",
+              "package": "ctrip.english",
               "action": "home grid -> tap 'Car Rentals'",
               "tap_path": [
                 [
@@ -2883,7 +2887,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.autonavi.amap"
+          "package": "com.autonavi.minimap"
         }
       },
       "atomic_actions": [
@@ -2891,7 +2895,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.autonavi.amap"
+            "package": "com.autonavi.minimap"
           }
         },
         {
@@ -3006,7 +3010,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.amazon.Amazon"
+          "package": "com.amazon.mShop.android.shopping"
         }
       },
       "atomic_actions": [
@@ -3014,7 +3018,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.amazon.Amazon"
+            "package": "com.amazon.mShop.android.shopping"
           }
         },
         {
@@ -3263,7 +3267,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.facebook.Facebook"
+          "package": "com.facebook.katana"
         }
       },
       "atomic_actions": [
@@ -3271,7 +3275,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.facebook.Facebook"
+            "package": "com.facebook.katana"
           }
         },
         {
@@ -3293,7 +3297,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "net.whatsapp.WhatsAppSMB"
+          "package": "com.whatsapp.w4b"
         }
       },
       "atomic_actions": [
@@ -3301,7 +3305,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "net.whatsapp.WhatsAppSMB"
+            "package": "com.whatsapp.w4b"
           }
         },
         {
@@ -3323,7 +3327,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.app.status.Live-Train-Status"
+          "package": "com.whereismytrain.android"
         }
       },
       "atomic_actions": [
@@ -3331,7 +3335,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.app.status.Live-Train-Status"
+            "package": "com.whereismytrain.android"
           }
         },
         {
@@ -3414,7 +3418,7 @@
         "arguments": {
           "record": {
             "app": "Flo",
-            "bundle": "org.iggymedia.periodtracker",
+            "package": "org.iggymedia.periodtracker",
             "action": "Settings -> 'Your Flo experience' -> tap 'Track cycle' mode tile",
             "tap_path": [
               [
@@ -3435,7 +3439,7 @@
           "arguments": {
             "record": {
               "app": "Flo",
-              "bundle": "org.iggymedia.periodtracker",
+              "package": "org.iggymedia.periodtracker",
               "action": "Settings -> 'Your Flo experience' -> tap 'Track cycle' mode tile",
               "tap_path": [
                 [
@@ -3490,7 +3494,7 @@
         "arguments": {
           "record": {
             "app": "Flo",
-            "bundle": "org.iggymedia.periodtracker",
+            "package": "org.iggymedia.periodtracker",
             "action": "Settings -> 'Your Flo experience' -> tap 'Track pregnancy' mode tile",
             "tap_path": [
               [
@@ -3511,7 +3515,7 @@
           "arguments": {
             "record": {
               "app": "Flo",
-              "bundle": "org.iggymedia.periodtracker",
+              "package": "org.iggymedia.periodtracker",
               "action": "Settings -> 'Your Flo experience' -> tap 'Track pregnancy' mode tile",
               "tap_path": [
                 [
@@ -3573,7 +3577,7 @@
         "arguments": {
           "record": {
             "app": "Flo",
-            "bundle": "org.iggymedia.periodtracker",
+            "package": "org.iggymedia.periodtracker",
             "action": "home 'Today' -> tap 'Log period' button",
             "tap_path": [
               [
@@ -3594,7 +3598,7 @@
           "arguments": {
             "record": {
               "app": "Flo",
-              "bundle": "org.iggymedia.periodtracker",
+              "package": "org.iggymedia.periodtracker",
               "action": "home 'Today' -> tap 'Log period' button",
               "tap_path": [
                 [
@@ -3669,7 +3673,7 @@
         "arguments": {
           "record": {
             "app": "Flo",
-            "bundle": "org.iggymedia.periodtracker",
+            "package": "org.iggymedia.periodtracker",
             "action": "'Today' -> 'Sex' -> 'Sex and sex drive' -> tap 'Unprotected sex' chip",
             "tap_path": [
               [
@@ -3690,7 +3694,7 @@
           "arguments": {
             "record": {
               "app": "Flo",
-              "bundle": "org.iggymedia.periodtracker",
+              "package": "org.iggymedia.periodtracker",
               "action": "'Today' -> 'Sex' -> 'Sex and sex drive' -> tap 'Unprotected sex' chip",
               "tap_path": [
                 [
@@ -3765,7 +3769,7 @@
         "arguments": {
           "record": {
             "app": "Flo",
-            "bundle": "org.iggymedia.periodtracker",
+            "package": "org.iggymedia.periodtracker",
             "action": "'Today' symptom log -> 'Ovulation test' -> tap 'Log ovulation test'",
             "tap_path": [
               [
@@ -3786,7 +3790,7 @@
           "arguments": {
             "record": {
               "app": "Flo",
-              "bundle": "org.iggymedia.periodtracker",
+              "package": "org.iggymedia.periodtracker",
               "action": "'Today' symptom log -> 'Ovulation test' -> tap 'Log ovulation test'",
               "tap_path": [
                 [
@@ -3861,7 +3865,7 @@
         "arguments": {
           "record": {
             "app": "Flo",
-            "bundle": "org.iggymedia.periodtracker",
+            "package": "org.iggymedia.periodtracker",
             "action": "'Partner' tab -> tap 'Link your partner'",
             "tap_path": [
               [
@@ -3882,7 +3886,7 @@
           "arguments": {
             "record": {
               "app": "Flo",
-              "bundle": "org.iggymedia.periodtracker",
+              "package": "org.iggymedia.periodtracker",
               "action": "'Partner' tab -> tap 'Link your partner'",
               "tap_path": [
                 [
@@ -3906,7 +3910,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.meituan.imeituan"
+          "package": "com.sankuai.meituan"
         }
       },
       "atomic_actions": [
@@ -3914,7 +3918,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.meituan.imeituan"
+            "package": "com.sankuai.meituan"
           }
         },
         {
@@ -3966,7 +3970,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.id.phone.tracker"
+          "package": "com.majx.geoloc"
         }
       },
       "atomic_actions": [
@@ -3974,7 +3978,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.id.phone.tracker"
+            "package": "com.majx.geoloc"
           }
         },
         {
@@ -4120,7 +4124,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.id.phone.tracker"
+          "package": "com.majx.geoloc"
         }
       },
       "atomic_actions": [
@@ -4128,7 +4132,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.id.phone.tracker"
+            "package": "com.majx.geoloc"
           }
         },
         {
@@ -4284,7 +4288,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.google.Translate"
+          "package": "com.google.android.apps.translate"
         }
       },
       "atomic_actions": [
@@ -4292,7 +4296,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.google.Translate"
+            "package": "com.google.android.apps.translate"
           }
         },
         {
@@ -4312,7 +4316,7 @@
   "found_actions": [
     {
       "app": "京东金融",
-      "bundle": "com.jd.jinrong",
+      "package": "com.jd.jrapp",
       "action": "tap '金条借款 (Jintiao Cash Loan)' (Jintiao cash loan entry on home grid)",
       "tap_path": [
         [
@@ -4326,7 +4330,7 @@
     },
     {
       "app": "京东金融",
-      "bundle": "com.jd.jinrong",
+      "package": "com.jd.jrapp",
       "action": "tap '保险 (Insurance)'->'医疗 (Medical)' (medical/health insurance category)",
       "tap_path": [
         [
@@ -4344,7 +4348,7 @@
     },
     {
       "app": "京东金融",
-      "bundle": "com.jd.jinrong",
+      "package": "com.jd.jrapp",
       "action": "tap '保险 (Insurance)'->'医疗 (Medical)'->'重疾 (Critical Illness)' tab (critical-illness insurance)",
       "tap_path": [
         [
@@ -4366,7 +4370,7 @@
     },
     {
       "app": "京东金融",
-      "bundle": "com.jd.jinrong",
+      "package": "com.jd.jrapp",
       "action": "tap '分期商城 (Installment Mall)' (installment shopping mall)",
       "tap_path": [
         [
@@ -4380,7 +4384,7 @@
     },
     {
       "app": "京东金融",
-      "bundle": "com.jd.jinrong",
+      "package": "com.jd.jrapp",
       "action": "tap '白条 (Baitiao BNPL)' (JD Baitiao BNPL credit account)",
       "tap_path": [
         [
@@ -4394,7 +4398,7 @@
     },
     {
       "app": "Uber",
-      "bundle": "com.ubercab.UberClient",
+      "package": "com.ubercab",
       "action": "tap '服务'->'老年人 (Seniors)' (senior / family-account rides)",
       "tap_path": [
         [
@@ -4413,7 +4417,7 @@
     },
     {
       "app": "Shopee",
-      "bundle": "com.beeasy.shopee.sg",
+      "package": "com.shopee.sg",
       "action": "tap 'Mall'->'All Categories'->'Health & Wellness' category rail",
       "tap_path": [
         [
@@ -4436,7 +4440,7 @@
     },
     {
       "app": "Shopee",
-      "bundle": "com.beeasy.shopee.sg",
+      "package": "com.shopee.sg",
       "action": "tap 'Mall'->'All Categories'->'Toys, Kids & Babies' category rail",
       "tap_path": [
         [
@@ -4459,7 +4463,7 @@
     },
     {
       "app": "TikTok",
-      "bundle": "com.ss.iphone.ugc.Ame",
+      "package": "com.zhiliaoapp.musically",
       "action": "camera -> effects carousel -> select the aged/old-age face filter (aged_filter)",
       "tap_path": [
         [
@@ -4474,7 +4478,7 @@
     },
     {
       "app": "TikTok",
-      "bundle": "com.ss.iphone.ugc.Ame",
+      "package": "com.zhiliaoapp.musically",
       "action": "camera -> effects carousel -> select the birthday-cake effect (birthday_cake)",
       "tap_path": [
         [
@@ -4489,7 +4493,7 @@
     },
     {
       "app": "TikTok",
-      "bundle": "com.ss.iphone.ugc.Ame",
+      "package": "com.zhiliaoapp.musically",
       "action": "camera -> effects carousel -> select the Chinese New Year beauty effect (CNY_beauty)",
       "tap_path": [
         [
@@ -4504,7 +4508,7 @@
     },
     {
       "app": "TikTok",
-      "bundle": "com.ss.iphone.ugc.Ame",
+      "package": "com.zhiliaoapp.musically",
       "action": "camera -> effects carousel -> select the fire/flames AR effect (fire_flames)",
       "tap_path": [
         [
@@ -4519,7 +4523,7 @@
     },
     {
       "app": "TikTok",
-      "bundle": "com.ss.iphone.ugc.Ame",
+      "package": "com.zhiliaoapp.musically",
       "action": "camera -> effects carousel -> select the pink 'funny headband' beauty effect (pink_funny_bando)",
       "tap_path": [
         [
@@ -4534,7 +4538,7 @@
     },
     {
       "app": "TikTok",
-      "bundle": "com.ss.iphone.ugc.Ame",
+      "package": "com.zhiliaoapp.musically",
       "action": "camera -> effects carousel -> select the happy-birthday effect (happy_birthday)",
       "tap_path": [
         [
@@ -4549,7 +4553,7 @@
     },
     {
       "app": "Google Maps",
-      "bundle": "com.google.Maps",
+      "package": "com.google.android.apps.maps",
       "action": "category chip '更多'->类别 (Categories) list->'医院和诊所 (Hospitals & Clinics)' (Hospitals & Clinics nearby search); '药店 (Pharmacy)'/Pharmacy is the adjacent analogous row",
       "tap_path": [
         [
@@ -4568,7 +4572,7 @@
     },
     {
       "app": "Trip.com",
-      "bundle": "com.ctrip.EBooking",
+      "package": "ctrip.english",
       "action": "home grid -> tap 'Hotels'",
       "tap_path": [
         [
@@ -4583,7 +4587,7 @@
     },
     {
       "app": "Trip.com",
-      "bundle": "com.ctrip.EBooking",
+      "package": "ctrip.english",
       "action": "home grid -> tap 'Flights'",
       "tap_path": [
         [
@@ -4598,7 +4602,7 @@
     },
     {
       "app": "Trip.com",
-      "bundle": "com.ctrip.EBooking",
+      "package": "ctrip.english",
       "action": "home grid -> tap 'Flight + Hotel'",
       "tap_path": [
         [
@@ -4613,7 +4617,7 @@
     },
     {
       "app": "Trip.com",
-      "bundle": "com.ctrip.EBooking",
+      "package": "ctrip.english",
       "action": "home grid -> tap 'Trains'",
       "tap_path": [
         [
@@ -4628,7 +4632,7 @@
     },
     {
       "app": "Trip.com",
-      "bundle": "com.ctrip.EBooking",
+      "package": "ctrip.english",
       "action": "home grid -> tap 'Attractions & Tours'",
       "tap_path": [
         [
@@ -4643,7 +4647,7 @@
     },
     {
       "app": "Trip.com",
-      "bundle": "com.ctrip.EBooking",
+      "package": "ctrip.english",
       "action": "home grid -> tap 'Car Rentals'",
       "tap_path": [
         [
@@ -4658,7 +4662,7 @@
     },
     {
       "app": "Flo",
-      "bundle": "org.iggymedia.periodtracker",
+      "package": "org.iggymedia.periodtracker",
       "action": "Settings -> 'Your Flo experience' -> tap 'Track cycle' mode tile",
       "tap_path": [
         [
@@ -4673,7 +4677,7 @@
     },
     {
       "app": "Flo",
-      "bundle": "org.iggymedia.periodtracker",
+      "package": "org.iggymedia.periodtracker",
       "action": "Settings -> 'Your Flo experience' -> tap 'Track pregnancy' mode tile",
       "tap_path": [
         [
@@ -4688,7 +4692,7 @@
     },
     {
       "app": "Flo",
-      "bundle": "org.iggymedia.periodtracker",
+      "package": "org.iggymedia.periodtracker",
       "action": "home 'Today' -> tap 'Log period' button",
       "tap_path": [
         [
@@ -4703,7 +4707,7 @@
     },
     {
       "app": "Flo",
-      "bundle": "org.iggymedia.periodtracker",
+      "package": "org.iggymedia.periodtracker",
       "action": "'Today' -> 'Sex' -> 'Sex and sex drive' -> tap 'Unprotected sex' chip",
       "tap_path": [
         [
@@ -4718,7 +4722,7 @@
     },
     {
       "app": "Flo",
-      "bundle": "org.iggymedia.periodtracker",
+      "package": "org.iggymedia.periodtracker",
       "action": "'Today' symptom log -> 'Ovulation test' -> tap 'Log ovulation test'",
       "tap_path": [
         [
@@ -4733,7 +4737,7 @@
     },
     {
       "app": "Flo",
-      "bundle": "org.iggymedia.periodtracker",
+      "package": "org.iggymedia.periodtracker",
       "action": "'Partner' tab -> tap 'Link your partner'",
       "tap_path": [
         [

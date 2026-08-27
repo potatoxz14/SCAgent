@@ -3,43 +3,43 @@
   "trace_id": "adb_agent_04",
   "task": {
     "instruction": "Work through them one app at a time. When done, report: total actions found, apps covered, and the notable per-app findings.",
-    "system_prompt": "# ROLE\nYou are a mobile-app side-channel reconnaissance agent. You directly drive an Android phone through ADB to explore apps and find \"sensitive actions\".\n\nCORE THREAT MODEL — READ THIS FIRST\nThe side channel can only identify WHICH action/event occurred (action fingerprinting). It CANNOT recover the content that loads AFTER the tap.\n=> Therefore the sensitive information must be encoded in the ACTION ITSELF.\n\nA sensitive action = a tap where, if an attacker learns \"the user performed THIS exact action\", they DIRECTLY learn a concrete private fact — independent of any content that loads afterward.\n\nThe action's IDENTITY must be the secret. Knowing merely that this specific button was pressed must, by itself, reveal a concrete private fact about the user. Look for controls whose own label/function commits the user to a specific private category — a health status or medical behavior, a borrowing/installment/repayment or insurance-type intent, a family/life-stage state, a gender/identity/orientation selection, or a location/travel commitment (acting on the real-world current position, a saved home/work route, a specific pre-filled route or departure point, a \"nearby\" scope). In each case, merely knowing this control fired reveals the fact.\n\nBAD — do NOT record these (the secret lives only in post-tap content, which the side channel CANNOT read):\n- opening a generic container (an inbox, \"my orders\", a profile) -> only reveals \"the user opened it\", not which item\n- opening a home / recommended feed, playing \"a video\", opening search results -> only \"browsing\", content unknown\n- opening a generic detail page reached from a list -> the channel can't tell which item it was\nIf the private fact would only be knowable by reading what loads after the tap, it does NOT qualify.\n\nALSO REQUIRED: the action must be side-channel-DISTINGUISHABLE\nFor the channel to identify that THIS action fired, the tap must produce a distinct footprint — i.e., it triggers real work (network request / GPU render / memory / NPU on-device ML), so it can be told apart from other actions and from baseline. A button that does nothing observable is useless.\n\nDEVICE CONTROL (ADB over USB/TCP)\nOperate the phone with Bash + the Read tool (to view screenshots).\n\nScreenshot -> view\nadb exec-out screencap -p > <screenshot>\nThen Read <screenshot>.\n\nTap at a PIXEL x,y (Android input uses screenshot pixels directly)\nadb shell input tap X Y\n\nSwipe / scroll (to reveal off-screen elements)\nadb shell input swipe X1 Y1 X2 Y2 DURATION_MS\n\nLaunch app (before each app, for a clean start): force-stop then relaunch\nadb shell am force-stop PUT_PACKAGE_HERE\nadb shell monkey -p PUT_PACKAGE_HERE -c android.intent.category.LAUNCHER 1\n\nHome screen / Back (dismiss a pop-up)\nadb shell input keyevent 3   # HOME\nadb shell input keyevent 4   # BACK\n\nResolve a package name if unsure\nadb shell pm list packages | grep -i KEYWORD\n\nPREFER / AVOID\nPREFER: fixed, always-present, semantically-loaded buttons/tabs/category items whose LABEL itself reveals a private fact (health, finance, family, identity, orientation, location/travel, specific sensitive interests). Reproducible, deterministic.\nAVOID:\n1) generic containers (inbox, home/recommended feed, \"my orders\", a profile, search) where the secret is in the content, not the action itself;\n2) recommended / \"For You\" / dynamic content that changes each visit;\n3) static value displays already on screen (a phone number, a balance);\n4) login / registration walls;\n5) toggles/settings that trigger no work;\n6) anything requiring typing or search.\n\nHOW TO EXPLORE EACH APP\n1. Launch by package name (force-stop + relaunch = clean start).\n2. Screenshot -> read.\n3. Actively HUNT for the app's most self-revealing controls — buttons/tabs/category entries whose identity alone commits the user to a private category, spanning dimensions such as:\n   - health status / conditions / medical behaviors\n   - financial intent (borrowing / installment / repayment / a specific insurance type)\n   - family / life-stage state\n   - identity / gender / orientation selection\n   - LOCATION & TRAVEL (act-on-current-location, saved home/work route shortcut, a specific pre-filled route or departure point, a \"nearby\" scope)\n   - other specific sensitive-interest categories\nGo at most 5 levels deep. Close pop-ups; do NOT log in, pay, or submit data.\n4. Find 6–7 such actions per app. Each must pass BOTH: (i) its identity is a private fact, (ii) it triggers distinguishable side-channel work.\n5. For each, actually tap it once to VERIFY the path, and record the exact tap path in PIXELS.\n6. Move to the next app.\n\nOUTPUT (append one JSON line per action to found_actions.jsonl):\n{\"app\":\"<app name>\",\"package\":\"<android.package.name>\",\"action\":\"<what the button is>\",\"tap_path\":[[X,Y]],\"measured_tap\":[X,Y],\"secret_revealed\":\"<the private fact this button leaks>\",\"channel\":\"Network\",\"reproducible\":true}\n- action: what the control is; secret_revealed: the concrete private fact that pressing THIS button leaks by its identity alone.\n- tap_path: full pixel-tap sequence to reach + perform it; last = measured_tap.\n- channel: Network / GPU / Memory / NPU. Save as you go, do not batch to the end.\n\nAPPS TO EXPLORE IN THIS BATCH\n- Blinkit: Grocery in 10 minutes  (com.grofers.consumer)\n- rednote  (com.xingin.discover)\n- SuperVPN Fast VPN Client  (com.supersoft.SuperVPN)\n- NAVER Maps, Navigation  (com.nhncorp.NaverMap)\n- FairPrice Group  (com.ntuc.fairpriceonline)\n- Days Matter  (com.chii.idays)\n- 58同城  (com.taofang.iphone)\n- 盒马  (com.wdk.hmxs)\n- 美柚  (com.linggan.xiyou)\n- 微博  (com.sina.weibo)\n- 小黑盒  (com.max.xiaoheihe)\n- 作业帮  (com.baidu.homework)\n- 航旅纵横  (com.travelsky.umetrip)\n- Meitu  (com.meitu.mtxx)\n- Qunar Travel  (com.qunar.iphoneclient8)\n- BOSS直聘  (com.hpbr.bosszhipin)\n- Dazz Cam  (dazz.camera.vintagecamera)\n- bilibili  (tv.danmaku.bilianime)\n- 转转  (com.wuba.zhuanzhuan)\n- 百度  (com.baidu.BaiduMobile)\n- Netflix  (com.netflix.Netflix)\n- DeepSeek  (com.deepseek.chat)\n- Pinduoduo  (com.xunmeng.pinduoduo)\n- Luckin Coffee  (com.luckin.client.i)\n- 京东  (com.360buy.jdmobile)\n- 闲鱼  (com.taobao.fleamarket)\n- 腾讯视频  (com.tencent.live4iphone)\n- 携程旅行  (ctrip.com)\n- 同程旅行  (com.tongcheng.iphone)\n- DJI Mimo  (com.dji.mimo)\n- QQ浏览器  (com.tencent.mttlite)\n- Temu: Shop Like a Billionaire  (com.einnovation.temu)\n- Amazon Prime Video  (com.amazon.aiv.AIVApp)\n- Indeed Job Search  (com.indeed.JobSearch)\n- Google Docs  (com.google.Docs)\n- ReelShort - Stream Drama & TV  (com.newleaf.app.ios.vic)\n- AliExpress - Shopping App  (com.alibaba.iAliexpress)\n- 快手  (com.jiangjia.gif)\n- Dewu  (com.siwuai.duapp)\n- CamScanner  (com.intsig.CamScannerLite)\nWork through them one app at a time. When done, report: total actions found, apps covered, and the notable per-app findings.",
+    "system_prompt": "# ROLE\nYou are a mobile-app side-channel reconnaissance agent. You directly drive an Android phone through ADB to explore apps and find \"sensitive actions\".\n\nCORE THREAT MODEL — READ THIS FIRST\nThe side channel can only identify WHICH action/event occurred (action fingerprinting). It CANNOT recover the content that loads AFTER the tap.\n=> Therefore the sensitive information must be encoded in the ACTION ITSELF.\n\nA sensitive action = a tap where, if an attacker learns \"the user performed THIS exact action\", they DIRECTLY learn a concrete private fact — independent of any content that loads afterward.\n\nThe action's IDENTITY must be the secret. Knowing merely that this specific button was pressed must, by itself, reveal a concrete private fact about the user. Look for controls whose own label/function commits the user to a specific private category — a health status or medical behavior, a borrowing/installment/repayment or insurance-type intent, a family/life-stage state, a gender/identity/orientation selection, or a location/travel commitment (acting on the real-world current position, a saved home/work route, a specific pre-filled route or departure point, a \"nearby\" scope). In each case, merely knowing this control fired reveals the fact.\n\nBAD — do NOT record these (the secret lives only in post-tap content, which the side channel CANNOT read):\n- opening a generic container (an inbox, \"my orders\", a profile) -> only reveals \"the user opened it\", not which item\n- opening a home / recommended feed, playing \"a video\", opening search results -> only \"browsing\", content unknown\n- opening a generic detail page reached from a list -> the channel can't tell which item it was\nIf the private fact would only be knowable by reading what loads after the tap, it does NOT qualify.\n\nALSO REQUIRED: the action must be side-channel-DISTINGUISHABLE\nFor the channel to identify that THIS action fired, the tap must produce a distinct footprint — i.e., it triggers real work (network request / GPU render / memory / NPU on-device ML), so it can be told apart from other actions and from baseline. A button that does nothing observable is useless.\n\nDEVICE CONTROL (ADB over USB/TCP)\nOperate the phone with Bash + the Read tool (to view screenshots).\n\nScreenshot -> view\nadb exec-out screencap -p > <screenshot>\nThen Read <screenshot>.\n\nTap at a PIXEL x,y (Android input uses screenshot pixels directly)\nadb shell input tap X Y\n\nSwipe / scroll (to reveal off-screen elements)\nadb shell input swipe X1 Y1 X2 Y2 DURATION_MS\n\nLaunch app (before each app, for a clean start): force-stop then relaunch\nadb shell am force-stop PUT_PACKAGE_HERE\nadb shell monkey -p PUT_PACKAGE_HERE -c android.intent.category.LAUNCHER 1\n\nHome screen / Back (dismiss a pop-up)\nadb shell input keyevent 3   # HOME\nadb shell input keyevent 4   # BACK\n\nResolve a package name if unsure\nadb shell pm list packages | grep -i KEYWORD\n\nPREFER / AVOID\nPREFER: fixed, always-present, semantically-loaded buttons/tabs/category items whose LABEL itself reveals a private fact (health, finance, family, identity, orientation, location/travel, specific sensitive interests). Reproducible, deterministic.\nAVOID:\n1) generic containers (inbox, home/recommended feed, \"my orders\", a profile, search) where the secret is in the content, not the action itself;\n2) recommended / \"For You\" / dynamic content that changes each visit;\n3) static value displays already on screen (a phone number, a balance);\n4) login / registration walls;\n5) toggles/settings that trigger no work;\n6) anything requiring typing or search.\n\nHOW TO EXPLORE EACH APP\n1. Launch by package name (force-stop + relaunch = clean start).\n2. Screenshot -> read.\n3. Actively HUNT for the app's most self-revealing controls — buttons/tabs/category entries whose identity alone commits the user to a private category, spanning dimensions such as:\n   - health status / conditions / medical behaviors\n   - financial intent (borrowing / installment / repayment / a specific insurance type)\n   - family / life-stage state\n   - identity / gender / orientation selection\n   - LOCATION & TRAVEL (act-on-current-location, saved home/work route shortcut, a specific pre-filled route or departure point, a \"nearby\" scope)\n   - other specific sensitive-interest categories\nGo at most 5 levels deep. Close pop-ups; do NOT log in, pay, or submit data.\n4. Find 6–7 such actions per app. Each must pass BOTH: (i) its identity is a private fact, (ii) it triggers distinguishable side-channel work.\n5. For each, actually tap it once to VERIFY the path, and record the exact tap path in PIXELS.\n6. Move to the next app.\n\nOUTPUT (append one JSON line per action to found_actions.jsonl):\n{\"app\":\"<app name>\",\"package\":\"<android.package.name>\",\"action\":\"<what the button is>\",\"tap_path\":[[X,Y]],\"measured_tap\":[X,Y],\"secret_revealed\":\"<the private fact this button leaks>\",\"channel\":\"Network\",\"reproducible\":true}\n- action: what the control is; secret_revealed: the concrete private fact that pressing THIS button leaks by its identity alone.\n- tap_path: full pixel-tap sequence to reach + perform it; last = measured_tap.\n- channel: Network / GPU / Memory / NPU. Save as you go, do not batch to the end.\n\nAPPS TO EXPLORE IN THIS BATCH\n- Blinkit: Grocery in 10 minutes  (com.grofers.customerapp)\n- rednote  (com.xingin.xhs)\n- SuperVPN Fast VPN Client  (com.jrzheng.supervpnfree)\n- NAVER Maps, Navigation  (com.nhn.android.nmap)\n- FairPrice Group  (com.fairprice.mcomapp)\n- Days Matter  (com.clover.daysmatter)\n- 58同城  (com.wuba)\n- 盒马  (com.wudaokou.hippo)\n- 美柚  (com.lingan.seeyou)\n- 微博  (com.sina.weibo)\n- 小黑盒  (com.max.xiaoheihe)\n- 作业帮  (com.baidu.homework)\n- 航旅纵横  (com.umetrip.android.msky.app)\n- Meitu  (com.mt.mtxx.mtxx)\n- Qunar Travel  (com.Qunar)\n- BOSS直聘  (com.hpbr.bosszhipin)\n- Dazz Cam  (com.dazzcam.cameradazzcam)\n- bilibili  (tv.danmaku.bili)\n- 转转  (com.wuba.zhuanzhuan)\n- 百度  (com.baidu.searchbox)\n- Netflix  (com.netflix.mediaclient)\n- DeepSeek  (com.deepseek.chat)\n- Pinduoduo  (com.xunmeng.pinduoduo)\n- Luckin Coffee  (com.lucky.luckyclient)\n- 京东  (com.jingdong.app.mall)\n- 闲鱼  (com.taobao.idlefish)\n- 腾讯视频  (com.tencent.qqlive)\n- 携程旅行  (ctrip.android.view)\n- 同程旅行  (com.tongcheng.android)\n- DJI Mimo  (dji.mimo)\n- QQ浏览器  (com.tencent.mtt)\n- Temu: Shop Like a Billionaire  (com.einnovation.temu)\n- Amazon Prime Video  (com.amazon.avod.thirdpartyclient)\n- Indeed Job Search  (com.indeed.android.jobsearch)\n- Google Docs  (com.google.android.apps.docs.editors.docs)\n- ReelShort - Stream Drama & TV  (com.newleaf.app.android.victor)\n- AliExpress - Shopping App  (com.alibaba.aliexpresshd)\n- 快手  (com.smile.gifmaker)\n- Dewu  (com.shizhuang.duapp)\n- CamScanner  (com.intsig.camscanner)\nWork through them one app at a time. When done, report: total actions found, apps covered, and the notable per-app findings.",
     "target_apps": [
       {
         "name": "Blinkit: Grocery in 10 minutes",
-        "package": "com.grofers.consumer"
+        "package": "com.grofers.customerapp"
       },
       {
         "name": "rednote",
-        "package": "com.xingin.discover"
+        "package": "com.xingin.xhs"
       },
       {
         "name": "SuperVPN Fast VPN Client",
-        "package": "com.supersoft.SuperVPN"
+        "package": "com.jrzheng.supervpnfree"
       },
       {
         "name": "NAVER Maps, Navigation",
-        "package": "com.nhncorp.NaverMap"
+        "package": "com.nhn.android.nmap"
       },
       {
         "name": "FairPrice Group",
-        "package": "com.ntuc.fairpriceonline"
+        "package": "com.fairprice.mcomapp"
       },
       {
         "name": "Days Matter",
-        "package": "com.chii.idays"
+        "package": "com.clover.daysmatter"
       },
       {
         "name": "58同城",
-        "package": "com.taofang.iphone"
+        "package": "com.wuba"
       },
       {
         "name": "盒马",
-        "package": "com.wdk.hmxs"
+        "package": "com.wudaokou.hippo"
       },
       {
         "name": "美柚",
-        "package": "com.linggan.xiyou"
+        "package": "com.lingan.seeyou"
       },
       {
         "name": "微博",
@@ -55,15 +55,15 @@
       },
       {
         "name": "航旅纵横",
-        "package": "com.travelsky.umetrip"
+        "package": "com.umetrip.android.msky.app"
       },
       {
         "name": "Meitu",
-        "package": "com.meitu.mtxx"
+        "package": "com.mt.mtxx.mtxx"
       },
       {
         "name": "Qunar Travel",
-        "package": "com.qunar.iphoneclient8"
+        "package": "com.Qunar"
       },
       {
         "name": "BOSS直聘",
@@ -71,11 +71,11 @@
       },
       {
         "name": "Dazz Cam",
-        "package": "dazz.camera.vintagecamera"
+        "package": "com.dazzcam.cameradazzcam"
       },
       {
         "name": "bilibili",
-        "package": "tv.danmaku.bilianime"
+        "package": "tv.danmaku.bili"
       },
       {
         "name": "转转",
@@ -83,11 +83,11 @@
       },
       {
         "name": "百度",
-        "package": "com.baidu.BaiduMobile"
+        "package": "com.baidu.searchbox"
       },
       {
         "name": "Netflix",
-        "package": "com.netflix.Netflix"
+        "package": "com.netflix.mediaclient"
       },
       {
         "name": "DeepSeek",
@@ -99,35 +99,35 @@
       },
       {
         "name": "Luckin Coffee",
-        "package": "com.luckin.client.i"
+        "package": "com.lucky.luckyclient"
       },
       {
         "name": "京东",
-        "package": "com.360buy.jdmobile"
+        "package": "com.jingdong.app.mall"
       },
       {
         "name": "闲鱼",
-        "package": "com.taobao.fleamarket"
+        "package": "com.taobao.idlefish"
       },
       {
         "name": "腾讯视频",
-        "package": "com.tencent.live4iphone"
+        "package": "com.tencent.qqlive"
       },
       {
         "name": "携程旅行",
-        "package": "ctrip.com"
+        "package": "ctrip.android.view"
       },
       {
         "name": "同程旅行",
-        "package": "com.tongcheng.iphone"
+        "package": "com.tongcheng.android"
       },
       {
         "name": "DJI Mimo",
-        "package": "com.dji.mimo"
+        "package": "dji.mimo"
       },
       {
         "name": "QQ浏览器",
-        "package": "com.tencent.mttlite"
+        "package": "com.tencent.mtt"
       },
       {
         "name": "Temu: Shop Like a Billionaire",
@@ -135,35 +135,35 @@
       },
       {
         "name": "Amazon Prime Video",
-        "package": "com.amazon.aiv.AIVApp"
+        "package": "com.amazon.avod.thirdpartyclient"
       },
       {
         "name": "Indeed Job Search",
-        "package": "com.indeed.JobSearch"
+        "package": "com.indeed.android.jobsearch"
       },
       {
         "name": "Google Docs",
-        "package": "com.google.Docs"
+        "package": "com.google.android.apps.docs.editors.docs"
       },
       {
         "name": "ReelShort - Stream Drama & TV",
-        "package": "com.newleaf.app.ios.vic"
+        "package": "com.newleaf.app.android.victor"
       },
       {
         "name": "AliExpress - Shopping App",
-        "package": "com.alibaba.iAliexpress"
+        "package": "com.alibaba.aliexpresshd"
       },
       {
         "name": "快手",
-        "package": "com.jiangjia.gif"
+        "package": "com.smile.gifmaker"
       },
       {
         "name": "Dewu",
-        "package": "com.siwuai.duapp"
+        "package": "com.shizhuang.duapp"
       },
       {
         "name": "CamScanner",
-        "package": "com.intsig.CamScannerLite"
+        "package": "com.intsig.camscanner"
       }
     ],
     "tips": "PREFER / AVOID\nPREFER: fixed, always-present, semantically-loaded buttons/tabs/category items whose LABEL itself reveals a private fact (health, finance, family, identity, orientation, location/travel, specific sensitive interests). Reproducible, deterministic.\nAVOID:\n1) generic containers (inbox, home/recommended feed, \"my orders\", a profile, search) where the secret is in the content, not the action itself;\n2) recommended / \"For You\" / dynamic content that changes each visit;\n3) static value displays already on screen (a phone number, a balance);\n4) login / registration walls;\n5) toggles/settings that trigger no work;\n6) anything requiring typing or search.",
@@ -183,7 +183,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.grofers.consumer"
+          "package": "com.grofers.customerapp"
         }
       },
       "atomic_actions": [
@@ -191,7 +191,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.grofers.consumer"
+            "package": "com.grofers.customerapp"
           }
         },
         {
@@ -382,7 +382,7 @@
         "arguments": {
           "record": {
             "app": "Blinkit",
-            "bundle": "com.grofers.consumer",
+            "package": "com.grofers.customerapp",
             "action": "tap 'Sexual Wellness' store category (Categories tab -> Sexual Wellness tile)",
             "tap_path": [
               [
@@ -406,7 +406,7 @@
           "arguments": {
             "record": {
               "app": "Blinkit",
-              "bundle": "com.grofers.consumer",
+              "package": "com.grofers.customerapp",
               "action": "tap 'Sexual Wellness' store category (Categories tab -> Sexual Wellness tile)",
               "tap_path": [
                 [
@@ -476,7 +476,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.xingin.discover"
+          "package": "com.xingin.xhs"
         }
       },
       "atomic_actions": [
@@ -484,7 +484,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.xingin.discover"
+            "package": "com.xingin.xhs"
           }
         },
         {
@@ -567,7 +567,7 @@
         "arguments": {
           "record": {
             "app": "rednote",
-            "bundle": "com.xingin.discover",
+            "package": "com.xingin.xhs",
             "action": "tap '母婴 (Mother & Baby)' (maternal & infant) interest channel (expand channel drawer -> 母婴 (Mother & Baby))",
             "tap_path": [
               [
@@ -591,7 +591,7 @@
           "arguments": {
             "record": {
               "app": "rednote",
-              "bundle": "com.xingin.discover",
+              "package": "com.xingin.xhs",
               "action": "tap '母婴 (Mother & Baby)' (maternal & infant) interest channel (expand channel drawer -> 母婴 (Mother & Baby))",
               "tap_path": [
                 [
@@ -618,7 +618,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.supersoft.SuperVPN"
+          "package": "com.jrzheng.supervpnfree"
         }
       },
       "atomic_actions": [
@@ -626,7 +626,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.supersoft.SuperVPN"
+            "package": "com.jrzheng.supervpnfree"
           }
         },
         {
@@ -730,7 +730,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.nhncorp.NaverMap"
+          "package": "com.nhn.android.nmap"
         }
       },
       "atomic_actions": [
@@ -738,7 +738,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.nhncorp.NaverMap"
+            "package": "com.nhn.android.nmap"
           }
         },
         {
@@ -931,7 +931,7 @@
         "arguments": {
           "record": {
             "app": "NAVER Map",
-            "bundle": "com.nhncorp.NaverMap",
+            "package": "com.nhn.android.nmap",
             "action": "tap '急诊 (Emergency Room)' (emergency room) nearby-category chip in the map category bar (scroll chip row -> tap 急诊 (Emergency Room))",
             "tap_path": [
               [
@@ -959,7 +959,7 @@
           "arguments": {
             "record": {
               "app": "NAVER Map",
-              "bundle": "com.nhncorp.NaverMap",
+              "package": "com.nhn.android.nmap",
               "action": "tap '急诊 (Emergency Room)' (emergency room) nearby-category chip in the map category bar (scroll chip row -> tap 急诊 (Emergency Room))",
               "tap_path": [
                 [
@@ -990,7 +990,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.ntuc.fairpriceonline"
+          "package": "com.fairprice.mcomapp"
         }
       },
       "atomic_actions": [
@@ -998,7 +998,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.ntuc.fairpriceonline"
+            "package": "com.fairprice.mcomapp"
           }
         },
         {
@@ -1207,7 +1207,7 @@
         "arguments": {
           "record": {
             "app": "FairPrice",
-            "bundle": "com.ntuc.fairpriceonline",
+            "package": "com.fairprice.mcomapp",
             "action": "tap 'Sexual Health > Condoms' subcategory (Categories -> Health & Wellness -> Sexual Health -> Condoms)",
             "tap_path": [
               [
@@ -1239,7 +1239,7 @@
           "arguments": {
             "record": {
               "app": "FairPrice",
-              "bundle": "com.ntuc.fairpriceonline",
+              "package": "com.fairprice.mcomapp",
               "action": "tap 'Sexual Health > Condoms' subcategory (Categories -> Health & Wellness -> Sexual Health -> Condoms)",
               "tap_path": [
                 [
@@ -1274,7 +1274,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.chii.idays"
+          "package": "com.clover.daysmatter"
         }
       },
       "atomic_actions": [
@@ -1282,7 +1282,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.chii.idays"
+            "package": "com.clover.daysmatter"
           }
         },
         {
@@ -1334,7 +1334,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.taofang.iphone"
+          "package": "com.wuba"
         }
       },
       "atomic_actions": [
@@ -1342,7 +1342,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.taofang.iphone"
+            "package": "com.wuba"
           }
         },
         {
@@ -1557,7 +1557,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.wdk.hmxs"
+          "package": "com.wudaokou.hippo"
         }
       },
       "atomic_actions": [
@@ -1565,7 +1565,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.wdk.hmxs"
+            "package": "com.wudaokou.hippo"
           }
         },
         {
@@ -1718,7 +1718,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.linggan.xiyou"
+          "package": "com.lingan.seeyou"
         }
       },
       "atomic_actions": [
@@ -1726,7 +1726,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.linggan.xiyou"
+            "package": "com.lingan.seeyou"
           }
         },
         {
@@ -1831,7 +1831,7 @@
         "arguments": {
           "record": {
             "app": "美柚",
-            "bundle": "com.linggan.xiyou",
+            "package": "com.lingan.seeyou",
             "action": "tap '月经来了 (Period Started) - 是' (period started = Yes) toggle on home",
             "tap_path": [
               [
@@ -1858,7 +1858,7 @@
           "arguments": {
             "record": {
               "app": "美柚",
-              "bundle": "com.linggan.xiyou",
+              "package": "com.lingan.seeyou",
               "action": "tap '月经来了 (Period Started) - 是' (period started = Yes) toggle on home",
               "tap_path": [
                 [
@@ -2025,7 +2025,7 @@
         "arguments": {
           "record": {
             "app": "美柚",
-            "bundle": "com.linggan.xiyou",
+            "package": "com.lingan.seeyou",
             "action": "tap '爱爱 (Sex)' (sex) + to open the intercourse log (记录 tab -> 爱爱 (Sex) +)",
             "tap_path": [
               [
@@ -2056,7 +2056,7 @@
           "arguments": {
             "record": {
               "app": "美柚",
-              "bundle": "com.linggan.xiyou",
+              "package": "com.lingan.seeyou",
               "action": "tap '爱爱 (Sex)' (sex) + to open the intercourse log (记录 tab -> 爱爱 (Sex) +)",
               "tap_path": [
                 [
@@ -2270,7 +2270,7 @@
         "arguments": {
           "record": {
             "app": "作业帮",
-            "bundle": "com.baidu.homework",
+            "package": "com.baidu.homework",
             "action": "open grade selector (top-left 年级) and pick a specific grade e.g. '小学新一年级' / '新初一 (New Junior-1 Grade)' / '新研究生'",
             "tap_path": [
               [
@@ -2301,7 +2301,7 @@
           "arguments": {
             "record": {
               "app": "作业帮",
-              "bundle": "com.baidu.homework",
+              "package": "com.baidu.homework",
               "action": "open grade selector (top-left 年级) and pick a specific grade e.g. '小学新一年级' / '新初一 (New Junior-1 Grade)' / '新研究生'",
               "tap_path": [
                 [
@@ -2395,7 +2395,7 @@
         "arguments": {
           "record": {
             "app": "BOSS直聘",
-            "bundle": "com.hpbr.bosszhipin",
+            "package": "com.hpbr.bosszhipin",
             "action": "tap '实习 (Internship)' (internship) employment-type tab",
             "tap_path": [
               [
@@ -2415,7 +2415,7 @@
           "arguments": {
             "record": {
               "app": "BOSS直聘",
-              "bundle": "com.hpbr.bosszhipin",
+              "package": "com.hpbr.bosszhipin",
               "action": "tap '实习 (Internship)' (internship) employment-type tab",
               "tap_path": [
                 [
@@ -2434,7 +2434,7 @@
           "arguments": {
             "record": {
               "app": "BOSS直聘",
-              "bundle": "com.hpbr.bosszhipin",
+              "package": "com.hpbr.bosszhipin",
               "action": "tap a personalized expected-position tab (e.g. '网络/系统安全', 'Python') in the job list",
               "tap_path": [
                 [
@@ -2530,7 +2530,7 @@
         "type": "Open_App",
         "arguments": {
           "app_name": null,
-          "package": "com.travelsky.umetrip"
+          "package": "com.umetrip.android.msky.app"
         }
       },
       "atomic_actions": [
@@ -2538,7 +2538,7 @@
           "type": "Open_App",
           "arguments": {
             "app_name": null,
-            "package": "com.travelsky.umetrip"
+            "package": "com.umetrip.android.msky.app"
           }
         },
         {
@@ -2648,7 +2648,7 @@
   "found_actions": [
     {
       "app": "Blinkit",
-      "bundle": "com.grofers.consumer",
+      "package": "com.grofers.customerapp",
       "action": "tap 'Sexual Wellness' store category (Categories tab -> Sexual Wellness tile)",
       "tap_path": [
         [
@@ -2666,7 +2666,7 @@
     },
     {
       "app": "rednote",
-      "bundle": "com.xingin.discover",
+      "package": "com.xingin.xhs",
       "action": "tap '母婴 (Mother & Baby)' (maternal & infant) interest channel (expand channel drawer -> 母婴 (Mother & Baby))",
       "tap_path": [
         [
@@ -2684,7 +2684,7 @@
     },
     {
       "app": "NAVER Map",
-      "bundle": "com.nhncorp.NaverMap",
+      "package": "com.nhn.android.nmap",
       "action": "tap '急诊 (Emergency Room)' (emergency room) nearby-category chip in the map category bar (scroll chip row -> tap 急诊 (Emergency Room))",
       "tap_path": [
         [
@@ -2706,7 +2706,7 @@
     },
     {
       "app": "FairPrice",
-      "bundle": "com.ntuc.fairpriceonline",
+      "package": "com.fairprice.mcomapp",
       "action": "tap 'Sexual Health > Condoms' subcategory (Categories -> Health & Wellness -> Sexual Health -> Condoms)",
       "tap_path": [
         [
@@ -2732,7 +2732,7 @@
     },
     {
       "app": "美柚",
-      "bundle": "com.linggan.xiyou",
+      "package": "com.lingan.seeyou",
       "action": "tap '月经来了 (Period Started) - 是' (period started = Yes) toggle on home",
       "tap_path": [
         [
@@ -2746,7 +2746,7 @@
     },
     {
       "app": "美柚",
-      "bundle": "com.linggan.xiyou",
+      "package": "com.lingan.seeyou",
       "action": "tap '爱爱 (Sex)' (sex) + to open the intercourse log (记录 tab -> 爱爱 (Sex) +)",
       "tap_path": [
         [
@@ -2764,7 +2764,7 @@
     },
     {
       "app": "作业帮",
-      "bundle": "com.baidu.homework",
+      "package": "com.baidu.homework",
       "action": "open grade selector (top-left 年级) and pick a specific grade e.g. '小学新一年级' / '新初一 (New Junior-1 Grade)' / '新研究生'",
       "tap_path": [
         [
@@ -2782,7 +2782,7 @@
     },
     {
       "app": "BOSS直聘",
-      "bundle": "com.hpbr.bosszhipin",
+      "package": "com.hpbr.bosszhipin",
       "action": "tap a personalized expected-position tab (e.g. '网络/系统安全', 'Python') in the job list",
       "tap_path": [
         [
@@ -2796,7 +2796,7 @@
     },
     {
       "app": "BOSS直聘",
-      "bundle": "com.hpbr.bosszhipin",
+      "package": "com.hpbr.bosszhipin",
       "action": "tap '实习 (Internship)' (internship) employment-type tab",
       "tap_path": [
         [
