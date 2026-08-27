@@ -207,3 +207,10 @@ bash Mobile-Agent-E/scripts/run_task.sh
 ```
 
 Discovered actions are written to `found_actions.jsonl` at the end of the run.
+------
+
+## 8. Side-Channel Trace Collection
+
+**Folder:** `tracing_code/`
+
+The on-device (Swift) code used to collect the side-channel trace data.
